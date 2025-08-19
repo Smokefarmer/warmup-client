@@ -8,33 +8,33 @@
   }
   
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
   }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background;
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
   }
   
   .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700;
+    @apply btn bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600;
   }
   
   .btn-secondary {
-    @apply btn bg-gray-200 text-gray-900 hover:bg-gray-300;
+    @apply btn bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600;
   }
   
   .btn-success {
-    @apply btn bg-success-600 text-white hover:bg-success-700;
+    @apply btn bg-success-600 text-white hover:bg-success-700 dark:bg-success-500 dark:hover:bg-success-600;
   }
   
   .btn-warning {
-    @apply btn bg-warning-600 text-white hover:bg-warning-700;
+    @apply btn bg-warning-600 text-white hover:bg-warning-700 dark:bg-warning-500 dark:hover:bg-warning-600;
   }
   
   .btn-danger {
-    @apply btn bg-danger-600 text-white hover:bg-danger-700;
+    @apply btn bg-danger-600 text-white hover:bg-danger-700 dark:bg-danger-500 dark:hover:bg-danger-600;
   }
   
   .btn-sm {
@@ -50,11 +50,11 @@
   }
   
   .card {
-    @apply bg-white rounded-lg border border-gray-200 shadow-sm;
+    @apply bg-white rounded-lg border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700;
   }
   
   .input {
-    @apply flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 dark:placeholder:text-gray-400;
   }
   
   .table {
@@ -62,11 +62,11 @@
   }
   
   .table th {
-    @apply bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200;
+    @apply bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700;
   }
   
   .table td {
-    @apply px-4 py-3 text-sm text-gray-900 border-b border-gray-100;
+    @apply px-4 py-3 text-sm text-gray-900 border-b border-gray-100 dark:text-gray-100 dark:border-gray-700;
   }
   
   .badge {
@@ -74,18 +74,18 @@
   }
   
   .badge-success {
-    @apply badge bg-success-100 text-success-800;
+    @apply badge bg-success-100 text-success-800 dark:bg-success-900 dark:text-success-200;
   }
   
   .badge-warning {
-    @apply badge bg-warning-100 text-warning-800;
+    @apply badge bg-warning-100 text-warning-800 dark:bg-warning-900 dark:text-warning-200;
   }
   
   .badge-danger {
-    @apply badge bg-danger-100 text-danger-800;
+    @apply badge bg-danger-100 text-danger-800 dark:bg-danger-900 dark:text-danger-200;
   }
   
   .badge-info {
-    @apply badge bg-primary-100 text-primary-800;
+    @apply badge bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200;
   }
 }

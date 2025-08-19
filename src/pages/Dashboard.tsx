@@ -38,8 +38,8 @@ export const Dashboard: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Monitor your wallet warmup operations</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Monitor your wallet warmup operations</p>
         </div>
         <div className="flex space-x-3">
           <Button variant="primary" size="md">
@@ -64,8 +64,8 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Wallets</p>
-              <p className="text-2xl font-semibold text-gray-900">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Wallets</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                 {walletStats?.totalWallets || 0}
               </p>
             </div>
@@ -81,9 +81,9 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Active Processes</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {warmupStats?.activeWallets || 0}
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Active Processes</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                {warmupStats?.activeProcesses || 0}
               </p>
             </div>
           </div>
@@ -98,8 +98,8 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Volume</p>
-              <p className="text-2xl font-semibold text-gray-900">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Volume</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                 {warmupStats?.totalVolume ? formatCurrency(warmupStats.totalVolume) : '0 ETH'}
               </p>
             </div>
@@ -115,8 +115,8 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Success Rate</p>
-              <p className="text-2xl font-semibold text-gray-900">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Success Rate</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                 {warmupStats?.successRate ? formatPercentage(warmupStats.successRate) : '0%'}
               </p>
             </div>
@@ -134,19 +134,19 @@ export const Dashboard: React.FC = () => {
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-success-500 rounded-full mr-3" />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {tx.type} - {tx.walletAddress?.slice(0, 8)}...
                     </p>
-                    <p className="text-xs text-gray-500">{tx.timestamp}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{tx.timestamp}</p>
                   </div>
                 </div>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   {formatCurrency(tx.amount)}
                 </span>
               </div>
             ))}
             {(!walletStats?.recentTransactions || walletStats.recentTransactions.length === 0) && (
-              <p className="text-gray-500 text-center py-4">No recent activity</p>
+              <p className="text-gray-500 dark:text-gray-400 text-center py-4">No recent activity</p>
             )}
           </div>
         </Card>
@@ -155,20 +155,20 @@ export const Dashboard: React.FC = () => {
         <Card title="Quick Stats" subtitle="Performance overview">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Total Transactions</span>
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Total Transactions</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 {formatNumber(warmupStats?.totalTransactions || 0)}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Average Transaction Time</span>
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Average Transaction Time</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 {warmupStats?.averageTransactionTime ? 
                   `${Math.round(warmupStats.averageTransactionTime)}s` : 'N/A'}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Total Profit/Loss</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Total Profit/Loss</span>
               <span className={`text-sm font-medium ${
                 (warmupStats?.totalProfitLoss || 0n) >= 0n ? 'text-success-600' : 'text-danger-600'
               }`}>
@@ -176,8 +176,8 @@ export const Dashboard: React.FC = () => {
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Funded Wallets</span>
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Funded Wallets</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 {formatNumber(fundingStats?.totalTransactions || 0)}
               </span>
             </div>
@@ -190,15 +190,15 @@ export const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex items-center">
             <div className="w-3 h-3 bg-success-500 rounded-full mr-3" />
-            <span className="text-sm text-gray-900">API Server</span>
+            <span className="text-sm text-gray-900 dark:text-gray-100">API Server</span>
           </div>
           <div className="flex items-center">
             <div className="w-3 h-3 bg-success-500 rounded-full mr-3" />
-            <span className="text-sm text-gray-900">Database</span>
+            <span className="text-sm text-gray-900 dark:text-gray-100">Database</span>
           </div>
           <div className="flex items-center">
             <div className="w-3 h-3 bg-success-500 rounded-full mr-3" />
-            <span className="text-sm text-gray-900">Blockchain Connection</span>
+            <span className="text-sm text-gray-900 dark:text-gray-100">Blockchain Connection</span>
           </div>
         </div>
       </Card>

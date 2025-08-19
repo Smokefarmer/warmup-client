@@ -14,54 +14,54 @@ export class WarmupService {
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.offset) params.append('offset', filters.offset.toString());
 
-    const response = await api.get(`/warmup?${params.toString()}`);
+    const response = await api.get(`/api/warmup?${params.toString()}`);
     return response.data;
   }
 
   // Get specific warmup process by ID
   static async getWarmupProcess(id: string): Promise<IWarmupProcess> {
-    const response = await api.get(`/warmup/${id}`);
+    const response = await api.get(`/api/warmup/${id}`);
     return response.data;
   }
 
   // Create new warmup process
   static async createWarmupProcess(process: CreateWarmupProcessDto): Promise<IWarmupProcess> {
-    const response = await api.post('/warmup', process);
+    const response = await api.post('/api/warmup', process);
     return response.data;
   }
 
   // Start warmup process
   static async startWarmupProcess(id: string): Promise<IWarmupProcess> {
-    const response = await api.post(`/warmup/${id}/start`);
+    const response = await api.post(`/api/warmup/${id}/start`);
     return response.data;
   }
 
   // Stop warmup process
   static async stopWarmupProcess(id: string): Promise<IWarmupProcess> {
-    const response = await api.post(`/warmup/${id}/stop`);
+    const response = await api.post(`/api/warmup/${id}/stop`);
     return response.data;
   }
 
   // Add wallets to warmup process
   static async addWalletsToProcess(id: string, walletIds: string[]): Promise<IWarmupProcess> {
-    const response = await api.put(`/warmup/${id}/wallets`, { walletIds });
+    const response = await api.put(`/api/warmup/${id}/wallets`, { walletIds });
     return response.data;
   }
 
   // Get warmup process statistics
   static async getWarmupStatistics(id: string): Promise<IWarmupStatistics> {
-    const response = await api.get(`/warmup/${id}/statistics`);
+    const response = await api.get(`/api/warmup/${id}/statistics`);
     return response.data;
   }
 
   // Delete warmup process
   static async deleteWarmupProcess(id: string): Promise<void> {
-    await api.delete(`/warmup/${id}`);
+    await api.delete(`/api/warmup/${id}`);
   }
 
   // Get global warmup statistics
   static async getGlobalWarmupStatistics(): Promise<IWarmupStatistics> {
-    const response = await api.get('/warmup/statistics');
+    const response = await api.get('/api/warmup/statistics');
     return response.data;
   }
 }

@@ -19,54 +19,54 @@ export class WalletService {
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.offset) params.append('offset', filters.offset.toString());
 
-    const response = await api.get(`/wallets?${params.toString()}`);
+    const response = await api.get(`/api/wallets?${params.toString()}`);
     return response.data;
   }
 
   // Get available wallets (not in any process)
   static async getAvailableWallets(): Promise<IWarmUpWallet[]> {
-    const response = await api.get('/wallets/available');
+    const response = await api.get('/api/wallets/available');
     return response.data;
   }
 
   // Get specific wallet by ID
   static async getWallet(id: string): Promise<IWarmUpWallet> {
-    const response = await api.get(`/wallets/${id}`);
+    const response = await api.get(`/api/wallets/${id}`);
     return response.data;
   }
 
   // Create single wallet
   static async createWallet(wallet: CreateWalletDto): Promise<IWarmUpWallet> {
-    const response = await api.post('/wallets', wallet);
+    const response = await api.post('/api/wallets', wallet);
     return response.data;
   }
 
   // Create batch wallets
   static async createBatchWallets(batch: CreateBatchWalletsDto): Promise<IWarmUpWallet[]> {
-    const response = await api.post('/wallets/batch', batch);
+    const response = await api.post('/api/wallets/batch', batch);
     return response.data;
   }
 
   // Update wallet status
   static async updateWalletStatus(id: string, status: WalletStatus): Promise<IWarmUpWallet> {
-    const response = await api.put(`/wallets/${id}/status`, { status });
+    const response = await api.put(`/api/wallets/${id}/status`, { status });
     return response.data;
   }
 
   // Update wallet type
   static async updateWalletType(id: string, type: WalletType): Promise<IWarmUpWallet> {
-    const response = await api.put(`/wallets/${id}/type`, { type });
+    const response = await api.put(`/api/wallets/${id}/type`, { type });
     return response.data;
   }
 
   // Delete wallet
   static async deleteWallet(id: string): Promise<void> {
-    await api.delete(`/wallets/${id}`);
+    await api.delete(`/api/wallets/${id}`);
   }
 
   // Get wallet statistics
   static async getWalletStatistics() {
-    const response = await api.get('/wallets/statistics');
+    const response = await api.get('/api/wallets/statistics');
     return response.data;
   }
 }

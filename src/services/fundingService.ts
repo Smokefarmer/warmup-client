@@ -9,13 +9,13 @@ import {
 export class FundingService {
   // Get funder information
   static async getFunder(): Promise<IFunder> {
-    const response = await api.get('/funding/funder');
+    const response = await api.get('/api/funding/funder');
     return response.data;
   }
 
   // Fund multiple wallets
   static async fundWallets(funding: FundWalletsDto): Promise<IFundingTransaction[]> {
-    const response = await api.post('/funding/fund', funding);
+    const response = await api.post('/api/funding/fund', funding);
     return response.data;
   }
 
@@ -25,19 +25,19 @@ export class FundingService {
     if (limit) params.append('limit', limit.toString());
     if (offset) params.append('offset', offset.toString());
 
-    const response = await api.get(`/funding/history?${params.toString()}`);
+    const response = await api.get(`/api/funding/history?${params.toString()}`);
     return response.data;
   }
 
   // Get specific funding transaction
   static async getFundingTransaction(id: string): Promise<IFundingTransaction> {
-    const response = await api.get(`/funding/transactions/${id}`);
+    const response = await api.get(`/api/funding/transactions/${id}`);
     return response.data;
   }
 
   // Get funding statistics
   static async getFundingStatistics(): Promise<FundingStatistics> {
-    const response = await api.get('/funding/statistics');
+    const response = await api.get('/api/funding/statistics');
     return response.data;
   }
 
@@ -49,7 +49,7 @@ export class FundingService {
       lastFundedAt?: Date;
     };
   }> {
-    const response = await api.post('/funding/check', { walletAddresses });
+    const response = await api.post('/api/funding/check', { walletAddresses });
     return response.data;
   }
 }

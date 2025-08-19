@@ -27,18 +27,21 @@ export const Wallets: React.FC = () => {
     search: ''
   });
 
-  const { data: wallets, isLoading } = useWallets();
+  const { data: wallets, isLoading, error } = useWallets();
   const updateStatusMutation = useUpdateWalletStatus();
   const updateTypeMutation = useUpdateWalletType();
   const deleteMutation = useDeleteWallet();
 
-  const filteredWallets = wallets?.filter(wallet => {
+  // Ensure wallets is an array and handle errors
+  const walletsArray = Array.isArray(wallets) ? wallets : [];
+  
+  const filteredWallets = walletsArray.filter(wallet => {
     if (filters.type && wallet.type !== filters.type) return false;
     if (filters.status && wallet.status !== filters.status) return false;
     if (filters.chainId && wallet.chainId.toString() !== filters.chainId) return false;
     if (filters.search && !wallet.address.toLowerCase().includes(filters.search.toLowerCase())) return false;
     return true;
-  }) || [];
+  });
 
   const handleStatusUpdate = (id: string, status: WalletStatus) => {
     updateStatusMutation.mutate({ id, status });
@@ -62,13 +65,32 @@ export const Wallets: React.FC = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-center">
+          <div className="text-red-500 text-lg font-semibold mb-2">Error Loading Wallets</div>
+          <div className="text-gray-600 dark:text-gray-400 mb-4">
+            {error.message || 'Failed to load wallet data. Please check your API connection.'}
+          </div>
+          <Button 
+            variant="primary" 
+            onClick={() => window.location.reload()}
+          >
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Wallets</h1>
-          <p className="text-gray-600 mt-1">Manage your wallet collection</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Wallets</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your wallet collection</p>
         </div>
         <Button variant="primary" size="md">
           <Plus className="w-4 h-4 mr-2" />
@@ -80,7 +102,7 @@ export const Wallets: React.FC = () => {
       <Card>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -94,7 +116,7 @@ export const Wallets: React.FC = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
             <select
               className="input"
               value={filters.type}
@@ -108,7 +130,7 @@ export const Wallets: React.FC = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
             <select
               className="input"
               value={filters.status}
@@ -122,7 +144,7 @@ export const Wallets: React.FC = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Chain ID</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Chain ID</label>
             <select
               className="input"
               value={filters.chainId}

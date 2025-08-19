@@ -1,14 +1,16 @@
 export enum WalletType {
-  TREND_TRADER = 'TrendTrader',
-  MAJOR_TRADER = 'MajorTrader',
-  HOLDER = 'Holder',
-  TRENCHER = 'Trencher'
+  TREND_TRADER = 'trendTrader',
+  MAJOR_TRADER = 'majorTrader',
+  HOLDER = 'holder',
+  TRENCHER = 'trencher'
 }
 
 export enum WalletStatus {
   ACTIVE = 'active',
   PAUSED = 'paused',
-  BANNED = 'banned'
+  BANNED = 'banned',
+  FUNDED = 'funded',
+  UNFUNDED = 'unfunded'
 }
 
 export enum WarmupStatus {
@@ -48,9 +50,12 @@ export interface CreateWalletDto {
 }
 
 export interface CreateBatchWalletsDto {
-  wallets: CreateWalletDto[];
+  count: number;
   typeDistribution?: {
-    [key in WalletType]?: number;
+    trendTrader?: number;
+    majorTrader?: number;
+    holder?: number;
+    trencher?: number;
   };
 }
 
