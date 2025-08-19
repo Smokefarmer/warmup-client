@@ -41,7 +41,8 @@ export const Funding: React.FC = () => {
 
     fundWalletsMutation.mutate({
       walletAddresses: selectedWallets,
-      amount: BigInt(Math.floor(amount * 1e18)) // Convert to wei
+      amount: BigInt(Math.floor(amount * 1e18)), // Convert to wei
+      chainId: 8453 // Base chain
     });
   };
 
@@ -127,7 +128,7 @@ export const Funding: React.FC = () => {
             <div className="max-h-64 overflow-y-auto space-y-2">
               {availableWallets?.map((wallet) => (
                 <div
-                  key={wallet.id}
+                  key={wallet._id}
                   className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
                     selectedWallets.includes(wallet.address)
                       ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'

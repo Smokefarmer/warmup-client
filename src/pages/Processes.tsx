@@ -139,7 +139,7 @@ export const Processes: React.FC = () => {
             </thead>
             <tbody>
               {filteredProcesses.map((process) => (
-                <tr key={process.id}>
+                <tr key={process._id}>
                   <td>
                     <div className="flex items-center">
                       <Activity className="w-4 h-4 text-gray-400 mr-2" />
@@ -178,7 +178,7 @@ export const Processes: React.FC = () => {
                         <Button
                           variant="success"
                           size="sm"
-                          onClick={() => handleStartProcess(process.id)}
+                          onClick={() => handleStartProcess(process._id)}
                           loading={startProcessMutation.isPending}
                         >
                           <Play className="w-3 h-3" />
@@ -189,7 +189,7 @@ export const Processes: React.FC = () => {
                         <Button
                           variant="warning"
                           size="sm"
-                          onClick={() => handleStopProcess(process.id)}
+                          onClick={() => handleStopProcess(process._id)}
                           loading={stopProcessMutation.isPending}
                         >
                           <Square className="w-3 h-3" />
@@ -199,7 +199,7 @@ export const Processes: React.FC = () => {
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => handleDeleteProcess(process.id)}
+                                                 onClick={() => handleDeleteProcess(process._id)}
                         loading={deleteProcessMutation.isPending}
                       >
                         <Trash2 className="w-3 h-3" />

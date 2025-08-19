@@ -3,6 +3,7 @@ export interface IFunder {
   address: string;
   balance: bigint;
   chainId: number;
+  status: 'active' | 'inactive' | 'error';
   isActive: boolean;
   lastUsedAt?: Date;
   createdAt: Date;
@@ -13,6 +14,7 @@ export interface IFundingTransaction {
   id: string;
   fromAddress: string;
   toAddress: string;
+  walletAddress: string;
   amount: bigint;
   chainId: number;
   status: 'pending' | 'completed' | 'failed';

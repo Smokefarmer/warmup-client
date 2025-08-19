@@ -1,22 +1,35 @@
 import { IWarmUpWallet, WalletType } from './wallet';
 
 export interface IWarmupProcess {
-  id: string;
+  _id: string;
   name: string;
   description?: string;
   status: string;
   walletIds: string[];
   wallets?: IWarmUpWallet[];
-  createdAt: Date;
-  updatedAt: Date;
-  startedAt?: Date;
-  completedAt?: Date;
+  totalWallets: number;
+  completedWallets: number;
+  failedWallets: number;
+  configuration: {
+    description: string;
+    maxConcurrentWallets: number;
+  };
+  progress: {
+    startTime: string | null;
+    estimatedCompletion: string | null;
+    currentWalletIndex: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+  startedAt?: string;
+  completedAt?: string;
   statistics?: IWarmupStatistics;
 }
 
 export interface IWarmupStatistics {
   totalWallets: number;
   activeWallets: number;
+  activeProcesses: number;
   completedWallets: number;
   failedWallets: number;
   totalTransactions: number;

@@ -177,7 +177,7 @@ export const Wallets: React.FC = () => {
             </thead>
             <tbody>
               {filteredWallets.map((wallet) => (
-                <tr key={wallet.id}>
+                <tr key={wallet._id}>
                   <td>
                     <div className="flex items-center">
                       <Wallet className="w-4 h-4 text-gray-400 mr-2" />
@@ -185,24 +185,24 @@ export const Wallets: React.FC = () => {
                     </div>
                   </td>
                   <td>
-                    <span className="text-sm font-medium text-gray-900">{wallet.type}</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{wallet.type}</span>
                   </td>
                   <td>
                     <StatusBadge status={wallet.status} />
                   </td>
                   <td>
-                    <span className="text-sm text-gray-900">{wallet.chainId}</span>
+                    <span className="text-sm text-gray-900 dark:text-gray-100">{wallet.chainId}</span>
                   </td>
                   <td>
-                    <span className="text-sm font-medium text-gray-900">
-                      {formatCurrency(wallet.balance)}
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {formatCurrency(BigInt(wallet.nativeTokenBalance || '0'))}
                     </span>
                   </td>
                   <td>
-                    <span className="text-sm text-gray-900">{wallet.transactionCount || 0}</span>
+                    <span className="text-sm text-gray-900 dark:text-gray-100">{wallet.buyTxCount + wallet.sellTxCount}</span>
                   </td>
                   <td>
-                    <span className="text-sm text-gray-500">{formatDate(wallet.createdAt)}</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{formatDate(wallet.createdAt)}</span>
                   </td>
                   <td>
                     <div className="flex items-center space-x-2">
@@ -210,7 +210,7 @@ export const Wallets: React.FC = () => {
                         <Button
                           variant="warning"
                           size="sm"
-                          onClick={() => handleStatusUpdate(wallet.id, WalletStatus.PAUSED)}
+                          onClick={() => handleStatusUpdate(wallet._id, WalletStatus.PAUSED)}
                           loading={updateStatusMutation.isPending}
                         >
                           <Pause className="w-3 h-3" />
@@ -221,7 +221,7 @@ export const Wallets: React.FC = () => {
                         <Button
                           variant="success"
                           size="sm"
-                          onClick={() => handleStatusUpdate(wallet.id, WalletStatus.ACTIVE)}
+                          onClick={() => handleStatusUpdate(wallet._id, WalletStatus.ACTIVE)}
                           loading={updateStatusMutation.isPending}
                         >
                           <Play className="w-3 h-3" />
@@ -232,7 +232,7 @@ export const Wallets: React.FC = () => {
                         <Button
                           variant="danger"
                           size="sm"
-                          onClick={() => handleStatusUpdate(wallet.id, WalletStatus.BANNED)}
+                          onClick={() => handleStatusUpdate(wallet._id, WalletStatus.BANNED)}
                           loading={updateStatusMutation.isPending}
                         >
                           <Ban className="w-3 h-3" />
@@ -242,7 +242,7 @@ export const Wallets: React.FC = () => {
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => handleDelete(wallet.id)}
+                        onClick={() => handleDelete(wallet._id)}
                         loading={deleteMutation.isPending}
                       >
                         <Trash2 className="w-3 h-3" />
@@ -257,7 +257,7 @@ export const Wallets: React.FC = () => {
           {filteredWallets.length === 0 && (
             <div className="text-center py-8">
               <Wallet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No wallets found</p>
+              <p className="text-gray-500 dark:text-gray-400">No wallets found</p>
             </div>
           )}
         </div>
@@ -267,8 +267,8 @@ export const Wallets: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <div className="text-center">
-            <p className="text-2xl font-bold text-gray-900">{filteredWallets.length}</p>
-            <p className="text-sm text-gray-500">Total Wallets</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{filteredWallets.length}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Total Wallets</p>
           </div>
         </Card>
         

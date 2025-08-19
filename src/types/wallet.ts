@@ -1,8 +1,8 @@
 export enum WalletType {
-  TREND_TRADER = 'trendTrader',
-  MAJOR_TRADER = 'majorTrader',
-  HOLDER = 'holder',
-  TRENCHER = 'trencher'
+  TREND_TRADER = 'TrendTrader',
+  MAJOR_TRADER = 'MajorTrader',
+  HOLDER = 'Holder',
+  TRENCHER = 'Trencher'
 }
 
 export enum WalletStatus {
@@ -22,15 +22,29 @@ export enum WarmupStatus {
 }
 
 export interface IWallet {
-  id: string;
+  _id: string;
   address: string;
-  privateKey: string;
+  publicKey: string;
+  encryptedPrivateKey: string;
+  privateKeySalt: string;
   chainId: number;
-  balance: bigint;
+  nativeTokenBalance: string;
+  totalFunded: string;
   type: WalletType;
   status: WalletStatus;
-  createdAt: Date;
-  updatedAt: Date;
+  fundingAmount: string;
+  buyAmount: string;
+  targetTokenBalance: string;
+  targetTokenBalancePercent: number;
+  usedForBundle: boolean;
+  buyTxCount: number;
+  sellTxCount: number;
+  maxTxCount: number;
+  isPaused: boolean;
+  config: any;
+  warmupProcessId?: any;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface IWarmUpWallet extends IWallet {
@@ -52,10 +66,10 @@ export interface CreateWalletDto {
 export interface CreateBatchWalletsDto {
   count: number;
   typeDistribution?: {
-    trendTrader?: number;
-    majorTrader?: number;
-    holder?: number;
-    trencher?: number;
+    TrendTrader?: number;
+    MajorTrader?: number;
+    Holder?: number;
+    Trencher?: number;
   };
 }
 
