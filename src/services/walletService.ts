@@ -19,8 +19,24 @@ export class WalletService {
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.offset) params.append('offset', filters.offset.toString());
 
-    const response = await api.get(`/api/wallets?${params.toString()}`);
-    return response.data;
+    console.log('🌐 API Call - getWallets:', {
+      url: `/api/wallets?${params.toString()}`,
+      baseURL: api.defaults.baseURL,
+      fullURL: `${api.defaults.baseURL}/api/wallets?${params.toString()}`
+    });
+
+    try {
+      const response = await api.get(`/api/wallets?${params.toString()}`);
+      console.log('✅ API Response - getWallets:', {
+        status: response.status,
+        data: response.data,
+        dataLength: response.data?.length
+      });
+      return response.data;
+    } catch (error) {
+      console.error('❌ API Error - getWallets:', error);
+      throw error;
+    }
   }
 
   // Get available wallets (not in any process)

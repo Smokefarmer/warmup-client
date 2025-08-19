@@ -27,7 +27,18 @@ export const Wallets: React.FC = () => {
     search: ''
   });
 
+  console.log('🔍 Wallets Component - About to call useWallets hook');
   const { data: wallets, isLoading, error } = useWallets();
+
+  // Debug logging
+  console.log('🔍 Wallets Debug:', {
+    wallets,
+    isLoading,
+    error,
+    walletsType: typeof wallets,
+    isArray: Array.isArray(wallets),
+    length: wallets?.length
+  });
   const updateStatusMutation = useUpdateWalletStatus();
   const updateTypeMutation = useUpdateWalletType();
   const deleteMutation = useDeleteWallet();

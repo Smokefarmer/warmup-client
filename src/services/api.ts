@@ -9,13 +9,27 @@ const api = axios.create({
   },
 });
 
+// Debug the base URL
+console.log('🔧 API Configuration:', {
+  VITE_API_URL: import.meta.env.VITE_API_URL,
+  baseURL: api.defaults.baseURL,
+  fullBaseURL: `${api.defaults.baseURL}`
+});
+
 // Request interceptor for adding auth tokens if needed
 api.interceptors.request.use(
   (config) => {
+    console.log('🚀 API Request:', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      baseURL: config.baseURL,
+      fullURL: `${config.baseURL}${config.url}`
+    });
     // Add any auth headers here if needed
     return config;
   },
   (error) => {
+    console.error('❌ Request Error:', error);
     return Promise.reject(error);
   }
 );
@@ -23,10 +37,20 @@ api.interceptors.request.use(
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => {
+    console.log('✅ API Response:', {
+      status: response.status,
+      url: response.config.url,
+      dataLength: response.data?.length || 'N/A'
+    });
     return response;
   },
   (error) => {
-    console.error('API Error:', error);
+    console.error('❌ API Error:', {
+      status: error.response?.status,
+      url: error.config?.url,
+      message: error.message,
+      data: error.response?.data
+    });
     
     // Handle specific error cases
     if (error.response?.status === 401) {
