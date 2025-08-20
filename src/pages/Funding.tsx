@@ -3,8 +3,10 @@ import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { StatusBadge } from '../components/common/StatusBadge';
+import { CopyButton } from '../components/common/CopyButton';
 import { useFunder, useFundingHistory, useFundWallets } from '../hooks/useFunding';
-import { useAvailableWallets } from '../hooks/useWallets';
+import { useAvailableWallets, useWallets } from '../hooks/useWallets';
+import { IWarmUpWallet } from '../types/wallet';
 import { formatCurrency, formatDate, formatAddress } from '../utils/formatters';
 import { 
   DollarSign, 
@@ -19,11 +21,16 @@ import {
 export const Funding: React.FC = () => {
   const [selectedWallets, setSelectedWallets] = useState<string[]>([]);
   const [fundingAmount, setFundingAmount] = useState<string>('');
+  const [showAllWallets, setShowAllWallets] = useState<boolean>(false);
 
   const { data: funder, isLoading: funderLoading } = useFunder();
   const { data: fundingHistory, isLoading: historyLoading } = useFundingHistory();
-  const { data: availableWallets, isLoading: walletsLoading } = useAvailableWallets();
+  const { data: allWallets, isLoading: allWalletsLoading } = useWallets();
+  const { data: availableWallets, isLoading: availableWalletsLoading } = useAvailableWallets();
   const fundWalletsMutation = useFundWallets();
+
+  const wallets = showAllWallets ? allWallets : availableWallets;
+  const walletsLoading = showAllWallets ? allWalletsLoading : availableWalletsLoading;
 
   const isLoading = funderLoading || historyLoading || walletsLoading;
 
@@ -55,8 +62,8 @@ export const Funding: React.FC = () => {
   };
 
   const handleSelectAll = () => {
-    if (availableWallets && availableWallets.length > 0) {
-      setSelectedWallets(availableWallets.map(wallet => wallet.address));
+    if (wallets && wallets.length > 0) {
+      setSelectedWallets(wallets.map((wallet: IWarmUpWallet) => wallet.address));
     }
   };
 
@@ -110,11 +117,33 @@ export const Funding: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Available Wallets */}
         <Card title="Available Wallets" subtitle="Select wallets to fund">
+          {/* Availability Info */}
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+              Wallet Availability Criteria
+            </h4>
+            <div className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
+              <p>• <strong>Available:</strong> Active status, not in warmup process, ready for funding</p>
+              <p>• <strong>Not Available:</strong> Paused, banned, already funded, or currently in warmup process</p>
+              <p>• <strong>Status Indicators:</strong> Check wallet status and process state for details</p>
+            </div>
+          </div>
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {availableWallets?.length || 0} wallets available
-              </p>
+              <div className="flex items-center space-x-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {wallets?.length || 0} wallets {showAllWallets ? 'total' : 'available'}
+                </p>
+                <label className="flex items-center space-x-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={showAllWallets}
+                    onChange={(e) => setShowAllWallets(e.target.checked)}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="text-gray-700 dark:text-gray-300">Show all wallets</span>
+                </label>
+              </div>
               <div className="flex space-x-2">
                 <Button variant="secondary" size="sm" onClick={handleSelectAll}>
                   Select All
@@ -126,25 +155,47 @@ export const Funding: React.FC = () => {
             </div>
 
             <div className="max-h-64 overflow-y-auto space-y-2">
-              {availableWallets?.map((wallet) => (
+              {wallets?.map((wallet: IWarmUpWallet) => (
                 <div
                   key={wallet._id}
                   className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
                     selectedWallets.includes(wallet.address)
                       ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      : availableWallets?.some(aw => aw._id === wallet._id)
+                      ? 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      : 'border-yellow-200 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 opacity-75'
                   }`}
                   onClick={() => handleWalletSelection(wallet.address)}
                 >
-                  <div className="flex items-center">
-                    <Wallet className="w-4 h-4 text-gray-400 mr-2" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {formatAddress(wallet.address)}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Type: {wallet.type}
-                      </p>
+                                      <div className="flex items-center">
+                      <Wallet className="w-4 h-4 text-gray-400 mr-2" />
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {formatAddress(wallet.address)}
+                          </p>
+                          <CopyButton text={wallet.address} size="sm" />
+                        </div>
+                      <div className="flex items-center space-x-2">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Type: {wallet.type}
+                        </p>
+                        {!availableWallets?.some(aw => aw._id === wallet._id) && (
+                          <span className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">
+                            Not Available
+                          </span>
+                        )}
+                        {wallet.status !== 'active' && (
+                          <span className="text-xs text-red-600 dark:text-red-400 font-medium">
+                            {wallet.status}
+                          </span>
+                        )}
+                        {wallet.warmupProcessId && (
+                          <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                            In Process
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center">
@@ -155,7 +206,7 @@ export const Funding: React.FC = () => {
                 </div>
               ))}
               
-              {(!availableWallets || availableWallets.length === 0) && (
+              {(!wallets || wallets.length === 0) && (
                 <div className="text-center py-8">
                   <Wallet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500 dark:text-gray-400">No available wallets</p>
