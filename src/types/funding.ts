@@ -18,6 +18,30 @@ export interface FunderStatus {
   status: 'active' | 'inactive' | 'error';
 }
 
+// Enhanced funder status with chain support
+export interface FunderStatusWithChain extends FunderStatus {
+  chainId: number;
+  lastUpdated: string;
+}
+
+// Multi-chain funder information
+export interface MultiChainFunderInfo {
+  success: boolean;
+  funderInfo: {
+    [chainId: string]: FunderStatusWithChain;
+  };
+}
+
+// Single chain funder information
+export interface SingleChainFunderInfo {
+  success: boolean;
+  funderAddress: string;
+  balance: string;
+  isAvailable: boolean;
+  chainId: number;
+  lastUpdated: string;
+}
+
 export interface IFundingTransaction {
   id: string;
   fromAddress: string;

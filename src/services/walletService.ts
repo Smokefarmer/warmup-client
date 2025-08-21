@@ -1,148 +1,125 @@
 import api from './api';
-import { 
-  IWallet, 
-  IWarmUpWallet, 
-  CreateWalletDto, 
-  CreateBatchWalletsDto, 
-  WalletFilters,
-  WalletType,
-  WalletStatus,
-  ChainId,
-  CreateMultiChainWalletDto
-} from '../types/wallet';
+import { IWallet, CreateWalletDto, CreateBatchWalletsDto, WalletStatus } from '../types/wallet';
 import { MultiChainService } from './multiChainService';
 
 export class WalletService {
-  // Get all wallets with optional filters
-  static async getWallets(filters?: WalletFilters): Promise<IWarmUpWallet[]> {
-    const params = new URLSearchParams();
-    if (filters?.type) params.append('type', filters.type);
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.chainId) params.append('chainId', filters.chainId.toString());
-    if (filters?.limit) params.append('limit', filters.limit.toString());
-    if (filters?.offset) params.append('offset', filters.offset.toString());
-
-    console.log('🌐 API Call - getWallets:', {
-      url: `/api/wallets?${params.toString()}`,
-      baseURL: api.defaults.baseURL,
-      fullURL: `${api.defaults.baseURL}/api/wallets?${params.toString()}`
-    });
-
+  // Get all wallets
+  static async getWallets(): Promise<IWallet[]> {
     try {
-      const response = await api.get(`/api/wallets?${params.toString()}`);
-      console.log('✅ API Response - getWallets:', {
-        status: response.status,
-        data: response.data,
-        dataLength: response.data?.length
-      });
+      const response = await api.get('/api/wallets');
       return response.data;
     } catch (error) {
-      console.error('❌ API Error - getWallets:', error);
+      console.error('Error fetching wallets:', error);
       throw error;
     }
   }
 
   // Get available wallets (not in any process)
-  static async getAvailableWallets(): Promise<IWarmUpWallet[]> {
-    console.log('🌐 API Call - getAvailableWallets');
+  static async getAvailableWallets(): Promise<IWallet[]> {
     try {
       const response = await api.get('/api/wallets/available');
-      console.log('✅ API Response - getAvailableWallets:', {
-        status: response.status,
-        data: response.data,
-        dataLength: response.data?.length,
-        firstWallet: response.data?.[0]
-      });
       return response.data;
     } catch (error) {
-      console.error('❌ API Error - getAvailableWallets:', error);
+      console.error('Error fetching available wallets:', error);
       throw error;
     }
   }
 
-  // Get specific wallet by ID
-  static async getWallet(id: string): Promise<IWarmUpWallet> {
-    const response = await api.get(`/api/wallets/${id}`);
-    return response.data;
+  // Get archived wallets
+  static async getArchivedWallets(): Promise<IWallet[]> {
+    try {
+      const response = await api.get('/api/wallets/archived');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching archived wallets:', error);
+      throw error;
+    }
   }
 
-  // Create single wallet
-  static async createWallet(wallet: CreateWalletDto): Promise<IWarmUpWallet> {
-    const response = await api.post('/api/wallets', wallet);
-    return response.data;
-  }
-
-  // Create multi-chain wallet (new method)
-  static async createMultiChainWallet(wallet: CreateMultiChainWalletDto): Promise<IWarmUpWallet> {
-    return MultiChainService.createWallet(wallet);
+  // Create wallet
+  static async createWallet(walletData: CreateWalletDto): Promise<IWallet> {
+    try {
+      const response = await api.post('/api/wallets', walletData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating wallet:', error);
+      throw error;
+    }
   }
 
   // Create batch wallets
-  static async createBatchWallets(batch: CreateBatchWalletsDto): Promise<IWarmUpWallet[]> {
-    const response = await api.post('/api/wallets/batch', batch);
-    return response.data;
-  }
-
-  // Create multi-chain batch wallets (new method)
-  static async createMultiChainBatchWallets(wallets: CreateMultiChainWalletDto[]): Promise<IWarmUpWallet[]> {
-    return MultiChainService.createMultiChainWallets(wallets);
+  static async createBatchWallets(batchData: CreateBatchWalletsDto): Promise<IWallet[]> {
+    try {
+      const response = await api.post('/api/wallets/batch', batchData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating batch wallets:', error);
+      throw error;
+    }
   }
 
   // Update wallet status
-  static async updateWalletStatus(id: string, status: WalletStatus): Promise<IWarmUpWallet> {
-    const response = await api.put(`/api/wallets/${id}/status`, { status });
-    return response.data;
+  static async updateWalletStatus(id: string, status: WalletStatus): Promise<IWallet> {
+    try {
+      const response = await api.put(`/api/wallets/${id}/status`, { status });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating wallet status:', error);
+      throw error;
+    }
   }
 
   // Update wallet type
-  static async updateWalletType(id: string, type: WalletType): Promise<IWarmUpWallet> {
-    const response = await api.put(`/api/wallets/${id}/type`, { type });
-    return response.data;
+  static async updateWalletType(id: string, type: string): Promise<IWallet> {
+    try {
+      const response = await api.put(`/api/wallets/${id}/type`, { type });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating wallet type:', error);
+      throw error;
+    }
   }
 
-  // Delete wallet
-  static async deleteWallet(id: string): Promise<void> {
-    await api.delete(`/api/wallets/${id}`);
+  // Archive wallet
+  static async archiveWallet(id: string): Promise<IWallet> {
+    try {
+      const response = await api.put(`/api/wallets/${id}/archive`);
+      return response.data;
+    } catch (error) {
+      console.error('Error archiving wallet:', error);
+      throw error;
+    }
+  }
+
+  // Unarchive wallet
+  static async unarchiveWallet(id: string): Promise<IWallet> {
+    try {
+      const response = await api.put(`/api/wallets/${id}/unarchive`);
+      return response.data;
+    } catch (error) {
+      console.error('Error unarchiving wallet:', error);
+      throw error;
+    }
+  }
+
+  // Multi-chain wallet creation (delegates to MultiChainService)
+  static async createMultiChainWallet(walletData: any): Promise<IWallet> {
+    return MultiChainService.createWallet(walletData);
+  }
+
+  // Multi-chain batch wallet creation (delegates to MultiChainService)
+  static async createMultiChainWallets(wallets: any[]): Promise<IWallet[]> {
+    return MultiChainService.createMultiChainWallets(wallets);
   }
 
   // Get wallet statistics
   static async getWalletStatistics() {
-    const response = await api.get('/api/wallets/statistics');
-    return response.data;
-  }
-
-  // Get wallets by chain (new method)
-  static async getWalletsByChain(chainId: ChainId): Promise<IWarmUpWallet[]> {
-    return MultiChainService.getWalletsByChain(chainId);
-  }
-
-  // Get wallet balance for specific chain (new method)
-  static async getWalletBalance(chainId: ChainId, publicKey: string) {
-    return MultiChainService.getWalletBalance(chainId, publicKey);
-  }
-
-  // Get transaction status for specific chain (new method)
-  static async getTransactionStatus(chainId: ChainId, txHash: string) {
-    return MultiChainService.getTransactionStatus(chainId, txHash);
-  }
-
-  // Get supported chains (new method)
-  static getSupportedChains() {
-    return MultiChainService.getSupportedChains();
-  }
-
-  // Get chain configuration (new method)
-  static getChainConfig(chainId: ChainId) {
-    return MultiChainService.getChainConfig(chainId);
-  }
-
-  // Validate chain support (new method)
-  static isChainSupported(chainId: number): boolean {
-    return MultiChainService.isChainSupported(chainId);
-  }
-
-  // Get chain name (new method)
-  static getChainName(chainId: ChainId): string {
-    return MultiChainService.getChainName(chainId);
+    try {
+      const response = await api.get('/api/wallets/statistics');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching wallet statistics:', error);
+      throw error;
+    }
   }
 }

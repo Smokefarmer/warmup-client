@@ -156,7 +156,7 @@ export const MultiChainWalletModal: React.FC<MultiChainWalletModalProps> = ({
               <div className="flex items-center">
                 <Wallet className="w-6 h-6 text-primary-600 mr-2" />
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                  Create Multi-Chain Wallet
+                  Import Multi-Chain Wallet
                 </h2>
               </div>
               <button
@@ -308,7 +308,7 @@ export const MultiChainWalletModal: React.FC<MultiChainWalletModalProps> = ({
               className="w-full sm:w-auto sm:ml-3"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Create Wallet
+              Import Wallet
             </Button>
             <Button
               type="button"

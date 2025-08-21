@@ -10,7 +10,9 @@ import {
   RandomBatchFundingDto,
   FundingResult,
   Transaction,
-  FundingWallet
+  FundingWallet,
+  SingleChainFunderInfo,
+  MultiChainFunderInfo
 } from '../types/funding';
 
 // API Base URL and endpoints - Updated to match actual backend
@@ -26,6 +28,7 @@ const ENDPOINTS = {
   
   // Balance endpoints
   funderInfo: '/api/balance/funder',
+  funderInfoAll: '/api/balance/funder/all',
   walletBalance: (id: string) => `/api/balance/wallet/${id}`,
   
   // History and statistics endpoints
@@ -93,6 +96,18 @@ export class FundingService {
   // Get funder balance
   static async getFunderBalance(): Promise<{ balance: string }> {
     const response = await api.get(ENDPOINTS.funderInfo);
+    return response.data;
+  }
+
+  // Get funder balance for specific chain
+  static async getFunderBalanceForChain(chainId: number): Promise<SingleChainFunderInfo> {
+    const response = await api.get(`${ENDPOINTS.funderInfo}?chainId=${chainId}`);
+    return response.data;
+  }
+
+  // Get funder information for all supported chains
+  static async getFunderInfoAll(): Promise<MultiChainFunderInfo> {
+    const response = await api.get(ENDPOINTS.funderInfoAll);
     return response.data;
   }
 

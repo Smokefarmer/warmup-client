@@ -1,50 +1,43 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 import { WalletService } from '../services/walletService';
-import { 
-  IWarmUpWallet, 
-  CreateWalletDto, 
-  CreateBatchWalletsDto, 
-  WalletFilters,
-  WalletType,
-  WalletStatus 
-} from '../types/wallet';
+import { WalletStatus, WalletType } from '../types/wallet';
 
 // Query keys
 export const walletKeys = {
   all: ['wallets'] as const,
   lists: () => [...walletKeys.all, 'list'] as const,
-  list: (filters: WalletFilters) => [...walletKeys.lists(), filters] as const,
-  available: () => [...walletKeys.all, 'available'] as const,
+  list: (filters?: any) => [...walletKeys.lists(), filters] as const,
+  archived: () => [...walletKeys.all, 'archived'] as const,
   details: () => [...walletKeys.all, 'detail'] as const,
   detail: (id: string) => [...walletKeys.details(), id] as const,
   statistics: () => [...walletKeys.all, 'statistics'] as const,
 };
 
 // Get all wallets
-export const useWallets = (filters?: WalletFilters) => {
+export const useWallets = () => {
   return useQuery({
-    queryKey: walletKeys.list(filters || {}),
-    queryFn: () => WalletService.getWallets(filters),
+    queryKey: ['wallets'],
+    queryFn: WalletService.getWallets,
     staleTime: 30000, // 30 seconds
   });
 };
 
-// Get available wallets
+// Get available wallets (not in any process)
 export const useAvailableWallets = () => {
   return useQuery({
-    queryKey: walletKeys.available(),
+    queryKey: ['wallets', 'available'],
     queryFn: () => WalletService.getAvailableWallets(),
-    staleTime: 30000,
+    staleTime: 30000, // 30 seconds
   });
 };
 
-// Get specific wallet
-export const useWallet = (id: string) => {
+// Get archived wallets
+export const useArchivedWallets = () => {
   return useQuery({
-    queryKey: walletKeys.detail(id),
-    queryFn: () => WalletService.getWallet(id),
-    enabled: !!id,
-    staleTime: 30000,
+    queryKey: ['wallets', 'archived'],
+    queryFn: WalletService.getArchivedWallets,
+    staleTime: 30000, // 30 seconds
   });
 };
 
@@ -57,16 +50,19 @@ export const useWalletStatistics = () => {
   });
 };
 
-// Create single wallet
+// Create wallet
 export const useCreateWallet = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (wallet: CreateWalletDto) => WalletService.createWallet(wallet),
+    mutationFn: WalletService.createWallet,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: walletKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: walletKeys.available() });
-      queryClient.invalidateQueries({ queryKey: walletKeys.statistics() });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      toast.success('Wallet created successfully!');
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || 'Failed to create wallet';
+      toast.error(`Failed to create wallet: ${message}`);
     },
   });
 };
@@ -76,11 +72,14 @@ export const useCreateBatchWallets = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (batch: CreateBatchWalletsDto) => WalletService.createBatchWallets(batch),
+    mutationFn: WalletService.createBatchWallets,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: walletKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: walletKeys.available() });
-      queryClient.invalidateQueries({ queryKey: walletKeys.statistics() });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      toast.success('Batch wallets created successfully!');
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || 'Failed to create batch wallets';
+      toast.error(`Failed to create batch wallets: ${message}`);
     },
   });
 };
@@ -90,12 +89,16 @@ export const useUpdateWalletStatus = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: WalletStatus }) => 
+    mutationFn: ({ id, status }: { id: string; status: WalletStatus }) =>
       WalletService.updateWalletStatus(id, status),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: walletKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: walletKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: walletKeys.available() });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', 'archived'] });
+      toast.success('Wallet status updated successfully!');
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || 'Failed to update wallet status';
+      toast.error(`Failed to update wallet status: ${message}`);
     },
   });
 };
@@ -105,25 +108,52 @@ export const useUpdateWalletType = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ id, type }: { id: string; type: WalletType }) => 
+    mutationFn: ({ id, type }: { id: string; type: WalletType }) =>
       WalletService.updateWalletType(id, type),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: walletKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: walletKeys.detail(id) });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', 'archived'] });
+      toast.success('Wallet type updated successfully!');
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || 'Failed to update wallet type';
+      toast.error(`Failed to update wallet type: ${message}`);
     },
   });
 };
 
-// Delete wallet
-export const useDeleteWallet = () => {
+// Archive wallet
+export const useArchiveWallet = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (id: string) => WalletService.deleteWallet(id),
+    mutationFn: WalletService.archiveWallet,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: walletKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: walletKeys.available() });
-      queryClient.invalidateQueries({ queryKey: walletKeys.statistics() });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', 'archived'] });
+      toast.success('Wallet archived successfully!');
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || 'Failed to archive wallet';
+      toast.error(`Failed to archive wallet: ${message}`);
+    },
+  });
+};
+
+// Unarchive wallet
+export const useUnarchiveWallet = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: WalletService.unarchiveWallet,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', 'archived'] });
+      toast.success('Wallet unarchived successfully!');
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || 'Failed to unarchive wallet';
+      toast.error(`Failed to unarchive wallet: ${message}`);
     },
   });
 };

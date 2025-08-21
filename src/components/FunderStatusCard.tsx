@@ -4,6 +4,7 @@ import { Button } from './common/Button';
 import { CopyButton } from './common/CopyButton';
 import { StatusBadge } from './common/StatusBadge';
 import { FunderStatus } from '../types/funding';
+import { WalletStatus } from '../types/wallet';
 import { formatCurrency, formatAddress } from '../utils/formatters';
 import { RefreshCw, Wallet, CheckCircle, XCircle } from 'lucide-react';
 
@@ -95,7 +96,7 @@ export const FunderStatusCard: React.FC<FunderStatusCardProps> = ({
               <XCircle className="w-4 h-4 text-red-500" />
             )}
             <StatusBadge 
-              status={funderStatus.available ? 'active' : 'inactive'} 
+              status={funderStatus.available ? WalletStatus.ACTIVE : WalletStatus.PAUSED} 
             />
           </div>
         </div>

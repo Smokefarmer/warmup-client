@@ -6,11 +6,10 @@ export enum WalletType {
 }
 
 export enum WalletStatus {
-  ACTIVE = 'active',
-  PAUSED = 'paused',
-  BANNED = 'banned',
-  FUNDED = 'funded',
-  UNFUNDED = 'unfunded'
+  ACTIVE = 'ACTIVE',
+  PAUSED = 'PAUSED',
+  BANNED = 'BANNED',
+  ARCHIVED = 'ARCHIVED'
 }
 
 export enum WarmupStatus {
@@ -46,28 +45,17 @@ export interface ChainConfig {
 export interface IWallet {
   _id: string;
   address: string;
-  publicKey: string;
-  encryptedPrivateKey: string;
-  privateKeySalt: string;
-  chainId: number;
-  nativeTokenBalance: string;
-  totalFunded: string;
+  publicKey?: string;
   type: WalletType;
   status: WalletStatus;
-  fundingAmount: string;
-  buyAmount: string;
-  targetTokenBalance: string;
-  targetTokenBalancePercent: number;
-  usedForBundle: boolean;
+  chainId: ChainId;
+  totalFunded: string;
+  nativeTokenBalance: string;
   buyTxCount: number;
   sellTxCount: number;
-  maxTxCount: number;
-  isPaused: boolean;
-  config: any;
-  warmupProcessId?: any;
   createdAt: string;
   updatedAt: string;
-  // Solana-specific fields
+  archivedAt?: string;
   solanaAccountInfo?: {
     lamports: number;
     owner: string;
@@ -86,11 +74,9 @@ export interface IWarmUpWallet extends IWallet {
 }
 
 export interface CreateWalletDto {
-  address: string;
-  privateKey: string;
-  chainId: number;
+  publicKey: string;
+  chainId: ChainId;
   type: WalletType;
-  // Solana-specific fields
   solanaAccountInfo?: {
     lamports: number;
     owner: string;
@@ -100,14 +86,8 @@ export interface CreateWalletDto {
 }
 
 export interface CreateBatchWalletsDto {
-  count: number;
-  typeDistribution?: {
-    TrendTrader?: number;
-    MajorTrader?: number;
-    Holder?: number;
-    Trencher?: number;
-  };
-  chainId?: number; // Specify chain for batch creation
+  wallets: CreateWalletDto[];
+  chainId?: ChainId;
 }
 
 export interface WalletFilters {
@@ -123,19 +103,9 @@ export interface CreateMultiChainWalletDto {
   publicKey: string;
   chainId: ChainId;
   type: WalletType;
-  // Optional chain-specific data
   chainSpecificData?: {
-    [ChainId.BASE]?: {
-      privateKey: string;
-    };
-    [ChainId.SOLANA]?: {
-      privateKey: string;
-      accountInfo?: {
-        lamports: number;
-        owner: string;
-        executable: boolean;
-        rentEpoch: number;
-      };
+    [chainId: number]: {
+      privateKey?: string;
     };
   };
 }

@@ -12,15 +12,30 @@ export const useWalletSelection = (wallets: IWarmUpWallet[] = []) => {
   const [filters, setFilters] = useState({
     type: '',
     status: '',
+    chainId: '',
     search: ''
   });
 
   // Filter wallets based on current filters
   const filteredWallets = useMemo(() => {
     return wallets.filter(wallet => {
+      // Type filter
       if (filters.type && wallet.type !== filters.type) return false;
+      
+      // Status filter
       if (filters.status && wallet.status !== filters.status) return false;
-      if (filters.search && !wallet.address.toLowerCase().includes(filters.search.toLowerCase())) return false;
+      
+      // Chain ID filter
+      if (filters.chainId && wallet.chainId.toString() !== filters.chainId) return false;
+      
+      // Search filter - check both address and publicKey
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        const addressMatch = wallet.address.toLowerCase().includes(searchLower);
+        const publicKeyMatch = wallet.publicKey?.toLowerCase().includes(searchLower) || false;
+        if (!addressMatch && !publicKeyMatch) return false;
+      }
+      
       return true;
     });
   }, [wallets, filters]);

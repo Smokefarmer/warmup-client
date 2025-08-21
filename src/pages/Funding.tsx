@@ -5,6 +5,7 @@ import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { FunderStatusCard } from '../components/FunderStatusCard';
+import { MultiChainFunderStatusCard } from '../components/MultiChainFunderStatusCard';
 import { WalletCard } from '../components/WalletCard';
 import { FundingModal } from '../components/FundingModal';
 import { TransactionHistory } from '../components/TransactionHistory';
@@ -55,13 +56,14 @@ export const Funding: React.FC = () => {
   // Data hooks
   const { data: funderStatus, isLoading: funderLoading, refetch: refetchFunder } = useFunderStatus();
   const { data: fundingHistory, isLoading: historyLoading, refetch: refetchHistory } = useFundingHistory();
-  const { data: allWallets, isLoading: allWalletsLoading } = useWallets();
-
+  
   // Multi-chain functionality
   const { 
     enabledChains,
     getChainName: getChainNameFromService,
-    getExplorerUrl 
+    getExplorerUrl,
+    availableWallets: allWallets,
+    availableWalletsLoading: allWalletsLoading
   } = useMultiChain();
 
   // Debug logging for funding history
@@ -269,7 +271,7 @@ export const Funding: React.FC = () => {
     // Force refresh wallet data after funding
     console.log('🔍 Forcing wallet data refresh...');
     queryClient.invalidateQueries({ queryKey: walletKeys.lists() });
-    queryClient.invalidateQueries({ queryKey: walletKeys.available() });
+    queryClient.invalidateQueries({ queryKey: ['availableWallets'] });
     
     // The mutations will automatically invalidate queries and refresh data
   }, [queryClient]);
@@ -325,11 +327,11 @@ export const Funding: React.FC = () => {
     refetchHistory();
     // Force complete refresh of all wallet data
     queryClient.invalidateQueries({ queryKey: walletKeys.lists() });
-    queryClient.invalidateQueries({ queryKey: walletKeys.available() });
+    queryClient.invalidateQueries({ queryKey: ['availableWallets'] });
     queryClient.invalidateQueries({ queryKey: walletKeys.details() });
     // Force refetch
     queryClient.refetchQueries({ queryKey: walletKeys.lists() });
-    queryClient.refetchQueries({ queryKey: walletKeys.available() });
+    queryClient.refetchQueries({ queryKey: ['availableWallets'] });
     toast.success('Data refreshed successfully');
   }, [refetchFunder, refetchHistory, queryClient]);
 
@@ -373,9 +375,7 @@ export const Funding: React.FC = () => {
       </div>
 
       {/* Funder Status Card */}
-      <FunderStatusCard
-        funderStatus={funderStatus}
-        isLoading={funderLoading}
+      <MultiChainFunderStatusCard
         onRefresh={refetchFunder}
       />
 

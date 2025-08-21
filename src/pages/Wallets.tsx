@@ -8,11 +8,13 @@ import { SkeletonLoader } from '../components/common/SkeletonLoader';
 import { VirtualWalletList } from '../components/VirtualWalletList';
 import { BalanceSummary } from '../components/BalanceSummary';
 import { MultiChainWalletModal } from '../components/MultiChainWalletModal';
-import { useWallets, useUpdateWalletStatus, useUpdateWalletType, useDeleteWallet } from '../hooks/useWallets';
+import { GenerateWalletModal } from '../components/GenerateWalletModal';
+import { ArchivedWalletsView } from '../components/ArchivedWalletsView';
+import { useWallets, useUpdateWalletStatus, useUpdateWalletType, useArchiveWallet } from '../hooks/useWallets';
 import { useWalletSelection } from '../hooks/useWalletSelection';
 import { useScanProgress } from '../hooks/useScanProgress';
 import { useUpdateTotalFundedForWallets } from '../hooks/useBalance';
-import { useDebounce } from '../hooks/useDebounce';
+
 import { useMultiChain } from '../hooks/useMultiChain';
 import { formatAddress, formatCurrency, formatDate } from '../utils/formatters';
 import { WalletType, WalletStatus, ChainId } from '../types/wallet';
@@ -35,19 +37,17 @@ import {
   Square,
   MinusSquare,
   Network,
-  ExternalLink
+  ExternalLink,
+  Zap,
+  Archive,
+  ArrowRight
 } from 'lucide-react';
 
 export const Wallets: React.FC = () => {
-  const [filters, setFilters] = useState({
-    type: '',
-    status: '',
-    chainId: '',
-    search: ''
-  });
-  const [searchTerm, setSearchTerm] = useState('');
   const [showResults, setShowResults] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [showArchivedWallets, setShowArchivedWallets] = useState(false);
 
   console.log('🔍 Wallets Component - About to call useWallets hook');
   const { data: wallets = [], isLoading, error } = useWallets();
@@ -60,14 +60,14 @@ export const Wallets: React.FC = () => {
     getExplorerUrl 
   } = useMultiChain();
   
-  // Debounced search
-  const debouncedSearch = useDebounce(searchTerm, 300);
+
   
   // Wallet selection management
   const {
     selectedWallets,
     selectedWalletIds,
     filteredWallets,
+    filters,
     selectAll,
     indeterminate,
     selectionSummary,
@@ -92,10 +92,7 @@ export const Wallets: React.FC = () => {
   // Balance update mutation
   const updateTotalFundedMutation = useUpdateTotalFundedForWallets();
 
-  // Update filters when search changes
-  useEffect(() => {
-    updateFilters({ search: debouncedSearch });
-  }, [debouncedSearch, updateFilters]);
+
 
   // Debug logging
   console.log('🔍 Wallets Debug:', {
@@ -108,7 +105,7 @@ export const Wallets: React.FC = () => {
   });
   const updateStatusMutation = useUpdateWalletStatus();
   const updateTypeMutation = useUpdateWalletType();
-  const deleteMutation = useDeleteWallet();
+  const archiveMutation = useArchiveWallet();
 
   // Handle scan all wallets
   const handleScanAll = useCallback(async () => {
@@ -180,9 +177,9 @@ export const Wallets: React.FC = () => {
     updateTypeMutation.mutate({ id, type });
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this wallet?')) {
-      deleteMutation.mutate(id);
+  const handleArchive = (id: string) => {
+    if (window.confirm('Are you sure you want to archive this wallet? It will be moved to the archived wallets section.')) {
+      archiveMutation.mutate(id);
     }
   };
 
@@ -190,6 +187,18 @@ export const Wallets: React.FC = () => {
     console.log('Wallet created successfully:', wallet);
     // The wallet list will automatically refresh due to query invalidation
   };
+
+  const handleGenerateWallet = (wallet: any) => {
+    console.log('Wallet generated successfully:', wallet);
+    // The wallet list will automatically refresh due to query invalidation
+  };
+
+  // Show archived wallets view
+  if (showArchivedWallets) {
+    return (
+      <ArchivedWalletsView onBack={() => setShowArchivedWallets(false)} />
+    );
+  }
 
   if (isLoading) {
     return (
@@ -243,14 +252,33 @@ export const Wallets: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Wallets</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your multi-chain wallet collection</p>
         </div>
-        <Button 
-          variant="primary" 
-          size="md"
-          onClick={() => setShowCreateModal(true)}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Wallet
-        </Button>
+        <div className="flex space-x-2">
+          <Button 
+            variant="secondary" 
+            size="md"
+            onClick={() => setShowArchivedWallets(true)}
+          >
+            <Archive className="w-4 h-4 mr-2" />
+            Archived Wallets
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+          <Button 
+            variant="secondary" 
+            size="md"
+            onClick={() => setShowGenerateModal(true)}
+          >
+            <Zap className="w-4 h-4 mr-2" />
+            Generate Wallet
+          </Button>
+          <Button 
+            variant="primary" 
+            size="md"
+            onClick={() => setShowCreateModal(true)}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Import Wallet
+          </Button>
+        </div>
       </div>
 
       {/* Scan and Update Total Funded Actions */}
@@ -383,8 +411,8 @@ export const Wallets: React.FC = () => {
                 type="text"
                 placeholder="Search by address..."
                 className="input pl-10"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={filters.search}
+                onChange={(e) => updateFilters({ search: e.target.value })}
               />
             </div>
           </div>
@@ -394,7 +422,7 @@ export const Wallets: React.FC = () => {
             <select
               className="input"
               value={filters.type}
-              onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
+              onChange={(e) => updateFilters({ type: e.target.value })}
             >
               <option value="">All Types</option>
               {Object.values(WalletType).map(type => (
@@ -408,7 +436,7 @@ export const Wallets: React.FC = () => {
             <select
               className="input"
               value={filters.status}
-              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+              onChange={(e) => updateFilters({ status: e.target.value })}
             >
               <option value="">All Statuses</option>
               {Object.values(WalletStatus).map(status => (
@@ -422,7 +450,7 @@ export const Wallets: React.FC = () => {
             <select
               className="input"
               value={filters.chainId}
-              onChange={(e) => setFilters(prev => ({ ...prev, chainId: e.target.value }))}
+              onChange={(e) => updateFilters({ chainId: e.target.value })}
             >
               <option value="">All Chains</option>
               {enabledChains?.map(chain => (
@@ -547,7 +575,7 @@ export const Wallets: React.FC = () => {
                           </Button>
                         )}
                         
-                        {wallet.status !== WalletStatus.BANNED && (
+                        {wallet.status !== WalletStatus.BANNED && wallet.status !== WalletStatus.ARCHIVED && (
                           <Button
                             variant="danger"
                             size="sm"
@@ -561,10 +589,10 @@ export const Wallets: React.FC = () => {
                         <Button
                           variant="secondary"
                           size="sm"
-                          onClick={() => handleDelete(wallet._id)}
-                          loading={deleteMutation.isPending}
+                          onClick={() => handleArchive(wallet._id)}
+                          loading={archiveMutation.isPending}
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Archive className="w-3 h-3" />
                         </Button>
                       </div>
                     </td>
@@ -699,6 +727,13 @@ export const Wallets: React.FC = () => {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleCreateWallet}
+      />
+
+      {/* Generate Wallet Modal */}
+      <GenerateWalletModal
+        isOpen={showGenerateModal}
+        onClose={() => setShowGenerateModal(false)}
+        onSuccess={handleGenerateWallet}
       />
     </div>
   );
