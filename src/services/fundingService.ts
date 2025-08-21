@@ -3,19 +3,96 @@ import {
   IFunder, 
   IFundingTransaction, 
   FundWalletsDto, 
-  FundingStatistics 
+  FundingStatistics,
+  FunderStatus,
+  SingleWalletFundingDto,
+  BatchFundingDto,
+  RandomBatchFundingDto,
+  FundingResult,
+  Transaction,
+  FundingWallet
 } from '../types/funding';
+
+// API Base URL and endpoints - Updated to match actual backend
+const API_BASE = import.meta.env.VITE_API_URL || 'https://warmup-server-development.up.railway.app';
+
+const ENDPOINTS = {
+  // Core funding endpoints
+  status: '/api/funding/status',
+  fundWallet: (id: string) => `/api/funding/wallet/${id}`,
+  fundWallets: '/api/funding/wallets',
+  fundWalletsRandom: '/api/funding/wallets/random',
+  transactionStatus: (hash: string) => `/api/funding/transaction/${hash}`,
+  
+  // Balance endpoints
+  funderInfo: '/api/balance/funder',
+  walletBalance: (id: string) => `/api/balance/wallet/${id}`,
+  
+  // History and statistics endpoints
+  history: '/api/funding/history',
+  statistics: '/api/funding/statistics',
+  transactions: (id: string) => `/api/funding/transactions/${id}`,
+  check: '/api/funding/check',
+  
+  // Legacy endpoints (keeping for backward compatibility)
+  funder: '/api/funding/funder',
+  fund: '/api/funding/fund',
+};
 
 export class FundingService {
   // Get funder information
   static async getFunder(): Promise<IFunder> {
-    const response = await api.get('/api/funding/funder');
+    const response = await api.get(ENDPOINTS.funder);
     return response.data;
   }
 
-  // Fund multiple wallets
+  // Get enhanced funder status for dashboard
+  static async getFunderStatus(): Promise<FunderStatus> {
+    const response = await api.get(ENDPOINTS.status);
+    return response.data;
+  }
+
+  // Fund multiple wallets (legacy)
   static async fundWallets(funding: FundWalletsDto): Promise<IFundingTransaction[]> {
-    const response = await api.post('/api/funding/fund', funding);
+    const response = await api.post(ENDPOINTS.fund, funding);
+    return response.data;
+  }
+
+  // Single wallet funding
+  static async fundWallet(params: SingleWalletFundingDto): Promise<FundingResult> {
+    const response = await api.post(ENDPOINTS.fundWallet(params.walletId), {
+      amount: params.amount
+    });
+    return response.data;
+  }
+
+  // Batch funding (same amount)
+  static async fundWalletsBatch(params: BatchFundingDto): Promise<FundingResult> {
+    const response = await api.post(ENDPOINTS.fundWallets, params);
+    return response.data;
+  }
+
+  // Random batch funding
+  static async fundWalletsRandom(params: RandomBatchFundingDto): Promise<FundingResult> {
+    const response = await api.post(ENDPOINTS.fundWalletsRandom, params);
+    return response.data;
+  }
+
+  // Check transaction status
+  static async checkTransactionStatus(txHash: string): Promise<Transaction> {
+    const response = await api.get(ENDPOINTS.transactionStatus(txHash));
+    return response.data;
+  }
+
+  // Get wallet balance
+  static async getWalletBalance(walletId: string): Promise<{ balance: string }> {
+    const response = await api.get(ENDPOINTS.walletBalance(walletId));
+    return response.data;
+  }
+
+  // Get funder balance
+  static async getFunderBalance(): Promise<{ balance: string }> {
+    const response = await api.get(ENDPOINTS.funderInfo);
     return response.data;
   }
 
@@ -25,19 +102,19 @@ export class FundingService {
     if (limit) params.append('limit', limit.toString());
     if (offset) params.append('offset', offset.toString());
 
-    const response = await api.get(`/api/funding/history?${params.toString()}`);
+    const response = await api.get(`${ENDPOINTS.history}?${params.toString()}`);
     return response.data;
   }
 
   // Get specific funding transaction
   static async getFundingTransaction(id: string): Promise<IFundingTransaction> {
-    const response = await api.get(`/api/funding/transactions/${id}`);
+    const response = await api.get(ENDPOINTS.transactions(id));
     return response.data;
   }
 
   // Get funding statistics
   static async getFundingStatistics(): Promise<FundingStatistics> {
-    const response = await api.get('/api/funding/statistics');
+    const response = await api.get(ENDPOINTS.statistics);
     return response.data;
   }
 
@@ -49,7 +126,7 @@ export class FundingService {
       lastFundedAt?: Date;
     };
   }> {
-    const response = await api.post('/api/funding/check', { walletAddresses });
+    const response = await api.post(ENDPOINTS.check, { walletAddresses });
     return response.data;
   }
 }

@@ -5,6 +5,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Wallets } from './pages/Wallets';
 import { Processes } from './pages/Processes';
 import { Funding } from './pages/Funding';
+import { ToastProvider } from './components/ToastProvider';
 import { 
   LayoutDashboard, 
   Wallet, 
@@ -157,10 +158,12 @@ const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          <Navigation />
-          <AppContent />
-        </div>
+        <ToastProvider>
+          <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+            <Navigation />
+            <AppContent />
+          </div>
+        </ToastProvider>
       </Router>
     </QueryClientProvider>
   );

@@ -6,8 +6,11 @@ import {
   CreateBatchWalletsDto, 
   WalletFilters,
   WalletType,
-  WalletStatus 
+  WalletStatus,
+  ChainId,
+  CreateMultiChainWalletDto
 } from '../types/wallet';
+import { MultiChainService } from './multiChainService';
 
 export class WalletService {
   // Get all wallets with optional filters
@@ -41,8 +44,20 @@ export class WalletService {
 
   // Get available wallets (not in any process)
   static async getAvailableWallets(): Promise<IWarmUpWallet[]> {
-    const response = await api.get('/api/wallets/available');
-    return response.data;
+    console.log('🌐 API Call - getAvailableWallets');
+    try {
+      const response = await api.get('/api/wallets/available');
+      console.log('✅ API Response - getAvailableWallets:', {
+        status: response.status,
+        data: response.data,
+        dataLength: response.data?.length,
+        firstWallet: response.data?.[0]
+      });
+      return response.data;
+    } catch (error) {
+      console.error('❌ API Error - getAvailableWallets:', error);
+      throw error;
+    }
   }
 
   // Get specific wallet by ID
@@ -57,10 +72,20 @@ export class WalletService {
     return response.data;
   }
 
+  // Create multi-chain wallet (new method)
+  static async createMultiChainWallet(wallet: CreateMultiChainWalletDto): Promise<IWarmUpWallet> {
+    return MultiChainService.createWallet(wallet);
+  }
+
   // Create batch wallets
   static async createBatchWallets(batch: CreateBatchWalletsDto): Promise<IWarmUpWallet[]> {
     const response = await api.post('/api/wallets/batch', batch);
     return response.data;
+  }
+
+  // Create multi-chain batch wallets (new method)
+  static async createMultiChainBatchWallets(wallets: CreateMultiChainWalletDto[]): Promise<IWarmUpWallet[]> {
+    return MultiChainService.createMultiChainWallets(wallets);
   }
 
   // Update wallet status
@@ -84,5 +109,40 @@ export class WalletService {
   static async getWalletStatistics() {
     const response = await api.get('/api/wallets/statistics');
     return response.data;
+  }
+
+  // Get wallets by chain (new method)
+  static async getWalletsByChain(chainId: ChainId): Promise<IWarmUpWallet[]> {
+    return MultiChainService.getWalletsByChain(chainId);
+  }
+
+  // Get wallet balance for specific chain (new method)
+  static async getWalletBalance(chainId: ChainId, publicKey: string) {
+    return MultiChainService.getWalletBalance(chainId, publicKey);
+  }
+
+  // Get transaction status for specific chain (new method)
+  static async getTransactionStatus(chainId: ChainId, txHash: string) {
+    return MultiChainService.getTransactionStatus(chainId, txHash);
+  }
+
+  // Get supported chains (new method)
+  static getSupportedChains() {
+    return MultiChainService.getSupportedChains();
+  }
+
+  // Get chain configuration (new method)
+  static getChainConfig(chainId: ChainId) {
+    return MultiChainService.getChainConfig(chainId);
+  }
+
+  // Validate chain support (new method)
+  static isChainSupported(chainId: number): boolean {
+    return MultiChainService.isChainSupported(chainId);
+  }
+
+  // Get chain name (new method)
+  static getChainName(chainId: ChainId): string {
+    return MultiChainService.getChainName(chainId);
   }
 }

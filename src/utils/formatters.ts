@@ -14,10 +14,33 @@ export const formatBigInt = (value: bigint, decimals: number = 18): string => {
   return `${whole}.${trimmedFraction}`;
 };
 
-// Format currency values
-export const formatCurrency = (value: bigint, symbol: string = 'ETH', decimals: number = 18): string => {
-  const formatted = formatBigInt(value, decimals);
-  return `${formatted} ${symbol}`;
+// Format currency values - Updated to handle different input types
+export const formatCurrency = (value: bigint | string | number, symbol: string = 'ETH', decimals: number = 18): string => {
+  try {
+    let formatted: string;
+    
+    if (typeof value === 'string') {
+      // If it's already a string with decimal places, use as is
+      if (value.includes('.')) {
+        formatted = value;
+      } else {
+        // Convert string to bigint and format
+        const bigIntValue = BigInt(value);
+        formatted = formatBigInt(bigIntValue, decimals);
+      }
+    } else if (typeof value === 'number') {
+      // Convert number to string and handle
+      formatted = value.toString();
+    } else {
+      // Handle bigint
+      formatted = formatBigInt(value, decimals);
+    }
+    
+    return `${formatted} ${symbol}`;
+  } catch (error) {
+    console.error('Error formatting currency:', error);
+    return `${value} ${symbol}`;
+  }
 };
 
 // Format wallet address (truncate middle)

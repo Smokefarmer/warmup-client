@@ -21,6 +21,28 @@ export enum WarmupStatus {
   STOPPED = 'stopped'
 }
 
+// Chain identifiers
+export enum ChainId {
+  BASE = 8453,
+  SOLANA = 101,
+  SOLANA_DEVNET = 102,
+  SOLANA_TESTNET = 103
+}
+
+// Chain-specific configuration
+export interface ChainConfig {
+  chainId: ChainId;
+  name: string;
+  nativeCurrency: {
+    name: string;
+    symbol: string;
+    decimals: number;
+  };
+  rpcUrl: string;
+  explorerUrl: string;
+  isTestnet: boolean;
+}
+
 export interface IWallet {
   _id: string;
   address: string;
@@ -45,6 +67,13 @@ export interface IWallet {
   warmupProcessId?: any;
   createdAt: string;
   updatedAt: string;
+  // Solana-specific fields
+  solanaAccountInfo?: {
+    lamports: number;
+    owner: string;
+    executable: boolean;
+    rentEpoch: number;
+  };
 }
 
 export interface IWarmUpWallet extends IWallet {
@@ -61,6 +90,13 @@ export interface CreateWalletDto {
   privateKey: string;
   chainId: number;
   type: WalletType;
+  // Solana-specific fields
+  solanaAccountInfo?: {
+    lamports: number;
+    owner: string;
+    executable: boolean;
+    rentEpoch: number;
+  };
 }
 
 export interface CreateBatchWalletsDto {
@@ -71,6 +107,7 @@ export interface CreateBatchWalletsDto {
     Holder?: number;
     Trencher?: number;
   };
+  chainId?: number; // Specify chain for batch creation
 }
 
 export interface WalletFilters {
@@ -79,4 +116,26 @@ export interface WalletFilters {
   chainId?: number;
   limit?: number;
   offset?: number;
+}
+
+// Multi-chain wallet creation
+export interface CreateMultiChainWalletDto {
+  publicKey: string;
+  chainId: ChainId;
+  type: WalletType;
+  // Optional chain-specific data
+  chainSpecificData?: {
+    [ChainId.BASE]?: {
+      privateKey: string;
+    };
+    [ChainId.SOLANA]?: {
+      privateKey: string;
+      accountInfo?: {
+        lamports: number;
+        owner: string;
+        executable: boolean;
+        rentEpoch: number;
+      };
+    };
+  };
 }

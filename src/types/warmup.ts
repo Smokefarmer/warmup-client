@@ -49,8 +49,14 @@ export interface IWarmupStatistics {
 
 export interface CreateWarmupProcessDto {
   name: string;
-  description?: string;
   walletIds: string[];
+  configuration?: {
+    maxConcurrentWallets?: number;
+    transactionInterval?: number; // seconds
+    maxTransactionsPerWallet?: number;
+    minTransactionAmount?: string;
+    maxTransactionAmount?: string;
+  };
 }
 
 export interface WarmupFilters {

@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { StatusBadge } from '../components/common/StatusBadge';
+import { WarmupProcessModal } from '../components/WarmupProcessModal';
+import { ProcessDashboard } from '../components/ProcessDashboard';
 import { useWarmupProcesses, useStartWarmupProcess, useStopWarmupProcess, useDeleteWarmupProcess } from '../hooks/useWarmupProcesses';
+import { WarmupService } from '../services/warmupService';
 import { formatDate, formatNumber } from '../utils/formatters';
 import { 
   Plus, 
@@ -13,14 +18,21 @@ import {
   Activity,
   Clock,
   Users,
-  TrendingUp
+  TrendingUp,
+  Eye,
+  ArrowLeft
 } from 'lucide-react';
 
 export const Processes: React.FC = () => {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedProcessId = searchParams.get('process');
+  
   const [filters, setFilters] = useState({
     status: '',
     search: ''
   });
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const { data: processes, isLoading, error } = useWarmupProcesses();
   const startProcessMutation = useStartWarmupProcess();
@@ -47,6 +59,33 @@ export const Processes: React.FC = () => {
   const handleDeleteProcess = (id: string) => {
     if (window.confirm('Are you sure you want to delete this process?')) {
       deleteProcessMutation.mutate(id);
+    }
+  };
+
+  const handleViewProcess = (processId: string) => {
+    setSearchParams({ process: processId });
+  };
+
+  const handleBackToList = () => {
+    setSearchParams({});
+  };
+
+  const handleCreateSuccess = (process: any) => {
+    setShowCreateModal(false);
+    // Optionally navigate to the new process
+    setSearchParams({ process: process._id });
+  };
+
+  const handleTestBackend = async () => {
+    try {
+      const result = await WarmupService.testBackendConnectivity();
+      if (result.available) {
+        toast.success('Backend connectivity test passed!');
+      } else {
+        toast.error(`Backend test failed: ${result.error}`);
+      }
+    } catch (error: any) {
+      toast.error(`Backend test error: ${error.message}`);
     }
   };
 
@@ -77,6 +116,16 @@ export const Processes: React.FC = () => {
     );
   }
 
+  // Show process dashboard if a process is selected
+  if (selectedProcessId) {
+    return (
+      <ProcessDashboard 
+        processId={selectedProcessId} 
+        onBack={handleBackToList}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -85,10 +134,23 @@ export const Processes: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Warmup Processes</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your wallet warmup processes</p>
         </div>
-        <Button variant="primary" size="md">
-          <Plus className="w-4 h-4 mr-2" />
-          Create Process
-        </Button>
+        <div className="flex space-x-2">
+          <Button 
+            variant="secondary" 
+            size="md"
+            onClick={handleTestBackend}
+          >
+            Test Backend
+          </Button>
+          <Button 
+            variant="primary" 
+            size="md"
+            onClick={() => setShowCreateModal(true)}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Process
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -174,6 +236,14 @@ export const Processes: React.FC = () => {
                   </td>
                   <td>
                     <div className="flex items-center space-x-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleViewProcess(process._id)}
+                      >
+                        <Eye className="w-3 h-3" />
+                      </Button>
+                      
                       {process.status === 'pending' && (
                         <Button
                           variant="success"
@@ -199,7 +269,7 @@ export const Processes: React.FC = () => {
                       <Button
                         variant="secondary"
                         size="sm"
-                                                 onClick={() => handleDeleteProcess(process._id)}
+                        onClick={() => handleDeleteProcess(process._id)}
                         loading={deleteProcessMutation.isPending}
                       >
                         <Trash2 className="w-3 h-3" />
@@ -256,6 +326,13 @@ export const Processes: React.FC = () => {
           </div>
         </Card>
       </div>
+
+      {/* Create Process Modal */}
+      <WarmupProcessModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={handleCreateSuccess}
+      />
     </div>
   );
 };

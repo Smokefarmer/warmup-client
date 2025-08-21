@@ -7,13 +7,16 @@ import { CopyButton } from '../components/common/CopyButton';
 import { SkeletonLoader } from '../components/common/SkeletonLoader';
 import { VirtualWalletList } from '../components/VirtualWalletList';
 import { BalanceSummary } from '../components/BalanceSummary';
+import { MultiChainWalletModal } from '../components/MultiChainWalletModal';
 import { useWallets, useUpdateWalletStatus, useUpdateWalletType, useDeleteWallet } from '../hooks/useWallets';
 import { useWalletSelection } from '../hooks/useWalletSelection';
 import { useScanProgress } from '../hooks/useScanProgress';
 import { useUpdateTotalFundedForWallets } from '../hooks/useBalance';
 import { useDebounce } from '../hooks/useDebounce';
+import { useMultiChain } from '../hooks/useMultiChain';
 import { formatAddress, formatCurrency, formatDate } from '../utils/formatters';
-import { WalletType, WalletStatus } from '../types/wallet';
+import { WalletType, WalletStatus, ChainId } from '../types/wallet';
+import { getChainName, getChainDecimals, getChainSymbol } from '../config/chains';
 import { 
   Plus, 
   Search, 
@@ -30,7 +33,9 @@ import {
   X,
   CheckSquare,
   Square,
-  MinusSquare
+  MinusSquare,
+  Network,
+  ExternalLink
 } from 'lucide-react';
 
 export const Wallets: React.FC = () => {
@@ -42,9 +47,18 @@ export const Wallets: React.FC = () => {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [showResults, setShowResults] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   console.log('🔍 Wallets Component - About to call useWallets hook');
   const { data: wallets = [], isLoading, error } = useWallets();
+  
+  // Multi-chain functionality
+  const { 
+    supportedChains, 
+    enabledChains,
+    getChainName: getChainNameFromService,
+    getExplorerUrl 
+  } = useMultiChain();
   
   // Debounced search
   const debouncedSearch = useDebounce(searchTerm, 300);
@@ -172,6 +186,11 @@ export const Wallets: React.FC = () => {
     }
   };
 
+  const handleCreateWallet = (wallet: any) => {
+    console.log('Wallet created successfully:', wallet);
+    // The wallet list will automatically refresh due to query invalidation
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -222,9 +241,13 @@ export const Wallets: React.FC = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Wallets</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your wallet collection</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your multi-chain wallet collection</p>
         </div>
-        <Button variant="primary" size="md">
+        <Button 
+          variant="primary" 
+          size="md"
+          onClick={() => setShowCreateModal(true)}
+        >
           <Plus className="w-4 h-4 mr-2" />
           Create Wallet
         </Button>
@@ -395,16 +418,18 @@ export const Wallets: React.FC = () => {
           </div>
                     
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Chain ID</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Chain</label>
             <select
               className="input"
               value={filters.chainId}
               onChange={(e) => setFilters(prev => ({ ...prev, chainId: e.target.value }))}
             >
               <option value="">All Chains</option>
-              <option value="1">Ethereum (1)</option>
-              <option value="137">Polygon (137)</option>
-              <option value="56">BSC (56)</option>
+              {enabledChains?.map(chain => (
+                <option key={chain.chainId || chain.id} value={chain.chainId || chain.id}>
+                  {chain.name || getChainNameFromService(chain.chainId || chain.id)}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -430,7 +455,7 @@ export const Wallets: React.FC = () => {
                 <th>Address</th>
                 <th>Type</th>
                 <th>Status</th>
-                <th>Chain ID</th>
+                <th>Chain</th>
                 <th>Total Funded</th>
                 <th>Balance</th>
                 <th>Transactions</th>
@@ -439,94 +464,113 @@ export const Wallets: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredWallets.map((wallet) => (
-                <tr key={wallet._id}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={selectedWallets.has(wallet._id)}
-                      onChange={() => toggleWalletSelection(wallet._id)}
-                    />
-                  </td>
-                  <td>
-                    <div className="flex items-center">
-                      <Wallet className="w-4 h-4 text-gray-400 mr-2" />
-                      <span className="font-mono text-sm">{formatAddress(wallet.address)}</span>
-                      <CopyButton text={wallet.address} size="sm" className="ml-2" />
-                    </div>
-                  </td>
-                  <td>
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{wallet.type}</span>
-                  </td>
-                  <td>
-                    <StatusBadge status={wallet.status} />
-                  </td>
-                  <td>
-                    <span className="text-sm text-gray-900 dark:text-gray-100">{wallet.chainId}</span>
-                  </td>
-                  <td>
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {formatCurrency(BigInt(wallet.totalFunded || '0'))}
-                    </span>
-                  </td>
-                  <td>
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {formatCurrency(BigInt(wallet.nativeTokenBalance || '0'))}
-                    </span>
-                  </td>
-                  <td>
-                    <span className="text-sm text-gray-900 dark:text-gray-100">{wallet.buyTxCount + wallet.sellTxCount}</span>
-                  </td>
-                  <td>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">{formatDate(wallet.createdAt)}</span>
-                  </td>
-                  <td>
-                    <div className="flex items-center space-x-2">
-                      {wallet.status === WalletStatus.ACTIVE && (
+              {filteredWallets.map((wallet) => {
+                const explorerUrl = getExplorerUrl(wallet.chainId, wallet.publicKey || wallet.address);
+                
+                return (
+                  <tr key={wallet._id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedWallets.has(wallet._id)}
+                        onChange={() => toggleWalletSelection(wallet._id)}
+                      />
+                    </td>
+                    <td>
+                      <div className="flex items-center">
+                        <Wallet className="w-4 h-4 text-gray-400 mr-2" />
+                        <span className="font-mono text-sm">{formatAddress(wallet.publicKey || wallet.address)}</span>
+                        <CopyButton text={wallet.publicKey || wallet.address} size="sm" className="ml-2" />
+                        {explorerUrl && (
+                          <a
+                            href={explorerUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-2 text-blue-600 hover:text-blue-800"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{wallet.type}</span>
+                    </td>
+                    <td>
+                      <StatusBadge status={wallet.status} />
+                    </td>
+                    <td>
+                      <div className="flex items-center">
+                        <Network className="w-4 h-4 text-gray-400 mr-1" />
+                        <span className="text-sm text-gray-900 dark:text-gray-100">
+                          {getChainNameFromService(wallet.chainId)}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {formatCurrency(BigInt(wallet.totalFunded || '0'))}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {formatCurrency(BigInt(wallet.nativeTokenBalance || '0'))}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="text-sm text-gray-900 dark:text-gray-100">{wallet.buyTxCount + wallet.sellTxCount}</span>
+                    </td>
+                    <td>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">{formatDate(wallet.createdAt)}</span>
+                    </td>
+                    <td>
+                      <div className="flex items-center space-x-2">
+                        {wallet.status === WalletStatus.ACTIVE && (
+                          <Button
+                            variant="warning"
+                            size="sm"
+                            onClick={() => handleStatusUpdate(wallet._id, WalletStatus.PAUSED)}
+                            loading={updateStatusMutation.isPending}
+                          >
+                            <Pause className="w-3 h-3" />
+                          </Button>
+                        )}
+                        
+                        {wallet.status === WalletStatus.PAUSED && (
+                          <Button
+                            variant="success"
+                            size="sm"
+                            onClick={() => handleStatusUpdate(wallet._id, WalletStatus.ACTIVE)}
+                            loading={updateStatusMutation.isPending}
+                          >
+                            <Play className="w-3 h-3" />
+                          </Button>
+                        )}
+                        
+                        {wallet.status !== WalletStatus.BANNED && (
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => handleStatusUpdate(wallet._id, WalletStatus.BANNED)}
+                            loading={updateStatusMutation.isPending}
+                          >
+                            <Ban className="w-3 h-3" />
+                          </Button>
+                        )}
+                        
                         <Button
-                          variant="warning"
+                          variant="secondary"
                           size="sm"
-                          onClick={() => handleStatusUpdate(wallet._id, WalletStatus.PAUSED)}
-                          loading={updateStatusMutation.isPending}
+                          onClick={() => handleDelete(wallet._id)}
+                          loading={deleteMutation.isPending}
                         >
-                          <Pause className="w-3 h-3" />
+                          <Trash2 className="w-3 h-3" />
                         </Button>
-                      )}
-                      
-                      {wallet.status === WalletStatus.PAUSED && (
-                        <Button
-                          variant="success"
-                          size="sm"
-                          onClick={() => handleStatusUpdate(wallet._id, WalletStatus.ACTIVE)}
-                          loading={updateStatusMutation.isPending}
-                        >
-                          <Play className="w-3 h-3" />
-                        </Button>
-                      )}
-                      
-                      {wallet.status !== WalletStatus.BANNED && (
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => handleStatusUpdate(wallet._id, WalletStatus.BANNED)}
-                          loading={updateStatusMutation.isPending}
-                        >
-                          <Ban className="w-3 h-3" />
-                        </Button>
-                      )}
-                      
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleDelete(wallet._id)}
-                        loading={deleteMutation.isPending}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           
@@ -649,6 +693,13 @@ export const Wallets: React.FC = () => {
           </div>
         </Card>
       </div>
+
+      {/* Multi-Chain Wallet Creation Modal */}
+      <MultiChainWalletModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={handleCreateWallet}
+      />
     </div>
   );
 };

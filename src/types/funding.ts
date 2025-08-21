@@ -10,6 +10,14 @@ export interface IFunder {
   updatedAt: Date;
 }
 
+// Enhanced funder status for the dashboard
+export interface FunderStatus {
+  available: boolean;
+  funderAddress: string;
+  balance: string;
+  status: 'active' | 'inactive' | 'error';
+}
+
 export interface IFundingTransaction {
   id: string;
   fromAddress: string;
@@ -23,10 +31,44 @@ export interface IFundingTransaction {
   completedAt?: Date;
 }
 
+// Enhanced transaction interface for the dashboard
+export interface Transaction {
+  hash: string;
+  walletId: string;
+  amount: string;
+  status: 'pending' | 'confirmed' | 'failed';
+  confirmations: number;
+  timestamp: string;
+}
+
 export interface FundWalletsDto {
   walletAddresses: string[];
   amount: bigint;
   chainId: number;
+}
+
+// New funding interfaces for enhanced functionality
+export interface SingleWalletFundingDto {
+  walletId: string;
+  amount: string;
+}
+
+export interface BatchFundingDto {
+  walletIds: string[];
+  amount: string;
+}
+
+export interface RandomBatchFundingDto {
+  walletIds: string[];
+  minAmount: string;
+  maxAmount: string;
+}
+
+export interface FundingResult {
+  success: boolean;
+  transactions: Transaction[];
+  errors?: string[];
+  totalAmount: string;
 }
 
 export interface FundingStatistics {
@@ -36,4 +78,13 @@ export interface FundingStatistics {
   failedTransactions: number;
   averageAmount: bigint;
   lastFundingAt?: Date;
+}
+
+// Wallet interface for funding operations
+export interface FundingWallet {
+  id: string;
+  publicKey: string;
+  nativeTokenBalance: string;
+  totalFunded: string;
+  status: 'active' | 'paused' | 'created';
 }
