@@ -202,8 +202,8 @@ export class WarmupService {
         const stats = await this.getWarmupStatistics(processId);
         onUpdate(stats);
         
-        // Stop polling if process is completed or stopped
-        if (stats.status === 'COMPLETED' || stats.status === 'STOPPED') {
+        // Stop polling if process is completed by comparing completed vs total wallets
+        if (stats.completedWallets >= stats.totalWallets) {
           return;
         }
         

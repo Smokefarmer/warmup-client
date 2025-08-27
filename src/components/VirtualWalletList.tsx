@@ -1,11 +1,11 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { IWarmUpWallet } from '../types/wallet';
+import { IWarmUpWallet, IWallet } from '../types/wallet';
 import { formatAddress, formatCurrency } from '../utils/formatters';
 import { StatusBadge } from './common/StatusBadge';
 import { Wallet } from 'lucide-react';
 
 interface VirtualWalletListProps {
-  wallets: IWarmUpWallet[];
+  wallets: (IWarmUpWallet | IWallet)[];
   selectedWallets: Set<string>;
   onWalletSelect: (walletId: string) => void;
   onSelectAll: () => void;

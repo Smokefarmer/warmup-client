@@ -21,7 +21,7 @@ export const ApiDebugger: React.FC = () => {
       }
     } catch (error) {
       console.error('Test failed:', error);
-      setTestResult({ available: false, error: error.message });
+      setTestResult({ available: false, error: error instanceof Error ? error.message : 'Unknown error' });
       toast.error('Test failed with error');
     } finally {
       setIsTesting(false);

@@ -214,8 +214,8 @@ export class SolanaWarmupService {
         const stats = await this.getSolanaProcessStats(processId);
         onUpdate(stats);
         
-        // Check if process is completed
-        if (stats.status === 'completed' || stats.status === 'failed') {
+        // Check if process is completed by comparing completed vs total wallets
+        if (stats.completedWallets >= stats.totalWallets) {
           if (onComplete) onComplete(stats);
           return;
         }

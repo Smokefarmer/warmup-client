@@ -24,6 +24,7 @@ export enum WarmupStatus {
 export enum ChainId {
   BASE = 8453,
   SOLANA = 101,
+  SOLANA_MAINNET = 101,
   SOLANA_DEVNET = 102,
   SOLANA_TESTNET = 103
 }

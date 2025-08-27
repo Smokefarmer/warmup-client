@@ -159,7 +159,7 @@ export const directApiCalls = async () => {
       });
       
       if (!response.ok) {
-        throw new Error(\`HTTP \${response.status}: \${response.statusText}\`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       return response.json();
@@ -171,12 +171,12 @@ export const directApiCalls = async () => {
 
   const startWarmupProcess = async (processId: string) => {
     try {
-      const response = await fetch(\`http://localhost:3000/api/warmup/\${processId}/start\`, {
+      const response = await fetch(`http://localhost:3000/api/warmup/${processId}/start`, {
         method: 'POST'
       });
       
       if (!response.ok) {
-        throw new Error(\`HTTP \${response.status}: \${response.statusText}\`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       return response.json();
@@ -188,10 +188,10 @@ export const directApiCalls = async () => {
 
   const getProcessStats = async (processId: string) => {
     try {
-      const response = await fetch(\`http://localhost:3000/api/warmup/\${processId}/statistics\`);
+      const response = await fetch(`http://localhost:3000/api/warmup/${processId}/statistics`);
       
       if (!response.ok) {
-        throw new Error(\`HTTP \${response.status}: \${response.statusText}\`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       return response.json();
@@ -203,10 +203,10 @@ export const directApiCalls = async () => {
 
   const getTransactionLogs = async (processId: string) => {
     try {
-      const response = await fetch(\`http://localhost:3000/api/warmup/\${processId}/transactions\`);
+      const response = await fetch(`http://localhost:3000/api/warmup/${processId}/transactions`);
       
       if (!response.ok) {
-        throw new Error(\`HTTP \${response.status}: \${response.statusText}\`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       return response.json();
@@ -221,7 +221,7 @@ export const directApiCalls = async () => {
       const response = await fetch('http://localhost:3000/api/warmup/statistics/multi-chain');
       
       if (!response.ok) {
-        throw new Error(\`HTTP \${response.status}: \${response.statusText}\`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       return response.json();
@@ -239,7 +239,7 @@ export const directApiCalls = async () => {
     // Monitor progress
     const interval = setInterval(async () => {
       const stats = await getProcessStats(process._id);
-      console.log(\`Progress: \${stats.completedWallets}/\${stats.totalWallets}\`);
+      console.log(`Progress: ${stats.completedWallets}/${stats.totalWallets}`);
       
       if (stats.status === 'completed') {
         clearInterval(interval);

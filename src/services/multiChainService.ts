@@ -470,10 +470,20 @@ export class MultiChainService {
       // Return fallback statistics
       return {
         totalWallets: 0,
-        walletsByChain: {},
+        walletsByChain: {
+          [ChainId.BASE]: 0,
+          [ChainId.SOLANA]: 0,
+          [ChainId.SOLANA_DEVNET]: 0,
+          [ChainId.SOLANA_TESTNET]: 0
+        },
         totalProcesses: 0,
         activeProcesses: 0,
-        totalVolume: {}
+        totalVolume: {
+          [ChainId.BASE]: '0',
+          [ChainId.SOLANA]: '0',
+          [ChainId.SOLANA_DEVNET]: '0',
+          [ChainId.SOLANA_TESTNET]: '0'
+        }
       };
     }
   }

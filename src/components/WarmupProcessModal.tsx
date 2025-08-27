@@ -48,7 +48,7 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
   } = useMultiChain();
 
   // Filter wallets by selected chain
-  const filteredWallets = availableWallets.filter((wallet: IWarmUpWallet) => {
+  const filteredWallets = availableWallets.filter((wallet) => {
     if (!formData.selectedChainId) return true; // Show all if no chain selected
     return wallet.chainId === parseInt(formData.selectedChainId);
   });
@@ -299,7 +299,7 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
                 ) : (
                   <div className="max-h-96 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4">
-                      {filteredWallets.map((wallet: IWarmUpWallet) => {
+                      {filteredWallets.map((wallet) => {
                         const explorerUrl = getExplorerUrl(wallet.chainId, wallet.publicKey || wallet.address);
                         const isSelected = formData.selectedWalletIds.includes(wallet._id);
                         

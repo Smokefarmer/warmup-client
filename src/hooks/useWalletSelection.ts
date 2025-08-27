@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { IWarmUpWallet, WalletStatus } from '../types/wallet';
+import { IWarmUpWallet, IWallet, WalletStatus } from '../types/wallet';
 
 export interface WalletSelectionState {
   selectedWallets: Set<string>;
@@ -7,7 +7,7 @@ export interface WalletSelectionState {
   indeterminate: boolean;
 }
 
-export const useWalletSelection = (wallets: IWarmUpWallet[] = []) => {
+export const useWalletSelection = (wallets: (IWarmUpWallet | IWallet)[] = []) => {
   const [selectedWallets, setSelectedWallets] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState({
     type: '',

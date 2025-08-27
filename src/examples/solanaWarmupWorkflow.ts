@@ -116,7 +116,7 @@ export class SolanaWarmupWorkflow {
       onError?: (error: any) => void;
       intervalMs?: number;
     } = {}
-  ): Promise<void> {
+  ): Promise<() => void> {
     const {
       onProgress,
       onComplete,
@@ -131,7 +131,6 @@ export class SolanaWarmupWorkflow {
       processId,
       (stats) => {
         console.log(`📈 Progress Update:`, {
-          status: stats.status,
           completedWallets: stats.completedWallets,
           totalWallets: stats.totalWallets,
           successRate: `${(stats.successRate * 100).toFixed(1)}%`,
@@ -142,7 +141,6 @@ export class SolanaWarmupWorkflow {
       },
       (finalStats) => {
         console.log('🎉 Process completed!', {
-          finalStatus: finalStats.status,
           totalWallets: finalStats.totalWallets,
           completedWallets: finalStats.completedWallets,
           totalSOLVolume: finalStats.solanaSpecific?.totalSOLVolume || '0',
