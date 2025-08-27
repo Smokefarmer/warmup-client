@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Card } from './common/Card';
 import { Button } from './common/Button';
 import { LoadingSpinner } from './common/LoadingSpinner';
-import { IWarmUpWallet } from '../types/wallet';
+import { IWarmUpWallet, ChainId } from '../types/wallet';
 import { formatCurrency, formatAddress } from '../utils/formatters';
+import { MultiChainService } from '../services/multiChainService';
 import { 
   X, 
   Send, 
@@ -46,6 +47,29 @@ export const FundingModal: React.FC<FundingModalProps> = ({
   const [showPreview, setShowPreview] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [currentMode, setCurrentMode] = useState<'single' | 'batch' | 'random'>(mode);
+
+  // Detect chain from selected wallets
+  const detectChain = (): { chainId: ChainId; symbol: string; name: string } | null => {
+    if (!wallets || wallets.length === 0) return null;
+    
+    // Check if all wallets are on the same chain
+    const chainIds = [...new Set(wallets.map(w => w.chainId))];
+    if (chainIds.length > 1) {
+      // Mixed chains - show warning
+      return null;
+    }
+    
+    const chainId = chainIds[0];
+    const chainConfig = MultiChainService.getChainConfig(chainId);
+    
+    return {
+      chainId,
+      symbol: chainConfig.nativeCurrency.symbol,
+      name: chainConfig.name
+    };
+  };
+
+  const chainInfo = detectChain();
 
   useEffect(() => {
     if (!isOpen) {
@@ -168,6 +192,7 @@ export const FundingModal: React.FC<FundingModalProps> = ({
               {currentMode === 'single' && 'Fund a single wallet'}
               {currentMode === 'batch' && `Fund ${wallets.length} wallets with same amount`}
               {currentMode === 'random' && `Fund ${wallets.length} wallets with random amounts`}
+              {chainInfo && ` • ${chainInfo.name} (${chainInfo.symbol})`}
             </p>
           </div>
           <Button
@@ -213,11 +238,23 @@ export const FundingModal: React.FC<FundingModalProps> = ({
             </label>
           </div>
 
+          {/* Chain Warning */}
+          {!chainInfo && wallets && wallets.length > 0 && (
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-3">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-yellow-600" />
+                <span className="text-sm text-yellow-800 dark:text-yellow-200">
+                  Warning: Selected wallets are on different chains. Please select wallets from the same chain.
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Amount Input */}
           {currentMode === 'single' || currentMode === 'batch' ? (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Funding Amount (ETH)
+                Funding Amount ({chainInfo?.symbol || 'ETH'})
               </label>
               <input
                 type="number"
@@ -233,7 +270,7 @@ export const FundingModal: React.FC<FundingModalProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Minimum Amount (ETH)
+                  Minimum Amount ({chainInfo?.symbol || 'ETH'})
                 </label>
                 <input
                   type="number"
@@ -247,7 +284,7 @@ export const FundingModal: React.FC<FundingModalProps> = ({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Maximum Amount (ETH)
+                  Maximum Amount ({chainInfo?.symbol || 'ETH'})
                 </label>
                 <input
                   type="number"
@@ -287,7 +324,7 @@ export const FundingModal: React.FC<FundingModalProps> = ({
                         {formatAddress(wallet.address)}
                       </span>
                       <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {randomAmounts[wallet._id]} ETH
+                        {randomAmounts[wallet._id]} {chainInfo?.symbol || 'ETH'}
                       </span>
                     </div>
                   ))}
@@ -325,7 +362,7 @@ export const FundingModal: React.FC<FundingModalProps> = ({
                 Total Funding Required:
               </span>
               <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                {getTotalAmount().toFixed(6)} ETH
+                {getTotalAmount().toFixed(6)} {chainInfo?.symbol || 'ETH'}
               </span>
             </div>
           </div>

@@ -17,9 +17,9 @@ import {
   useFundWalletsBatch,
   useFundWalletsRandom
 } from '../hooks/useFunding';
-import { useAvailableWallets, useWallets, walletKeys } from '../hooks/useWallets';
+import { useWallets, walletKeys } from '../hooks/useWallets';
 import { useMultiChain } from '../hooks/useMultiChain';
-import { IWarmUpWallet, WalletStatus } from '../types/wallet';
+import { IWallet, IWarmUpWallet, WalletStatus } from '../types/wallet';
 import { getChainName } from '../config/chains';
 import { 
   DollarSign, 
@@ -61,10 +61,11 @@ export const Funding: React.FC = () => {
   const { 
     enabledChains,
     getChainName: getChainNameFromService,
-    getExplorerUrl,
-    availableWallets: allWallets,
-    availableWalletsLoading: allWalletsLoading
+    getExplorerUrl
   } = useMultiChain();
+
+  // Use the same data source as Wallets page - get ALL wallets
+  const { data: allWallets = [], isLoading: walletsLoading, error: walletsError } = useWallets();
 
   // Debug logging for funding history
   React.useEffect(() => {
@@ -85,18 +86,23 @@ export const Funding: React.FC = () => {
 
   // Computed values - Use the same data source as Wallets page
   const wallets = allWallets;
-  const walletsLoading = allWalletsLoading;
   const isLoading = funderLoading || historyLoading || walletsLoading;
 
   // Debug: Log which wallet source is being used
   console.log('🔍 Wallet Source Debug:', {
-    walletSource: 'allWallets (same as Wallets page)',
+    walletSource: 'useWallets (same as Wallets page)',
     walletsLength: wallets?.length || 0,
-    firstWalletBalance: wallets?.[0]?.nativeTokenBalance || 'N/A'
+    firstWalletBalance: wallets?.[0]?.nativeTokenBalance || 'N/A',
+    walletsLoading,
+    isLoading,
+    searchTerm,
+    selectedChainId,
+    walletsError
   });
 
   // Filter wallets based on search term, chain, and availability
-  const filteredWallets = wallets?.filter((wallet: IWarmUpWallet) => {
+  // For funding, show ALL active wallets regardless of warmup process status
+  const filteredWallets = wallets?.filter((wallet: IWallet) => {
     // First filter by search term
     const matchesSearch = (wallet.publicKey || wallet.address).toLowerCase().includes(searchTerm.toLowerCase()) ||
                          wallet.type.toLowerCase().includes(searchTerm.toLowerCase());
@@ -104,10 +110,27 @@ export const Funding: React.FC = () => {
     // Then filter by chain if selected
     const matchesChain = !selectedChainId || wallet.chainId === parseInt(selectedChainId);
     
-    // Then filter by availability (only show active wallets)
-    const isAvailable = wallet.status === WalletStatus.ACTIVE && !wallet.warmupProcessId;
+    // For funding, only filter by status - show all active wallets
+    // Handle both uppercase and lowercase status values from API
+    const isAvailable = wallet.status === WalletStatus.ACTIVE || String(wallet.status).toLowerCase() === 'active';
     
-    return matchesSearch && matchesChain && isAvailable;
+    const result = matchesSearch && matchesChain && isAvailable;
+    
+    // Debug individual wallet filtering
+    if (!result) {
+      console.log('🔍 Wallet filtered out:', {
+        address: wallet.publicKey || wallet.address,
+        status: wallet.status,
+        chainId: wallet.chainId,
+        matchesSearch,
+        matchesChain,
+        isAvailable,
+        searchTerm,
+        selectedChainId
+      });
+    }
+    
+    return result;
   }) || [];
 
   // Debug logging for wallet data (moved after filteredWallets is defined)
@@ -116,7 +139,7 @@ export const Funding: React.FC = () => {
       console.log('🔍 Wallet Data:', {
         count: wallets.length,
         firstWallet: wallets[0],
-        balances: wallets.map(w => ({
+        balances: wallets.map((w: IWallet) => ({
           address: w.publicKey || w.address,
           balance: w.nativeTokenBalance,
           totalFunded: w.totalFunded,
@@ -130,9 +153,24 @@ export const Funding: React.FC = () => {
   }, [wallets, filteredWallets]);
 
   // Check if wallet is available for funding
-  const isWalletAvailable = useCallback((wallet: IWarmUpWallet) => {
-    // A wallet is available if it's active and not in a warmup process
-    return wallet.status === WalletStatus.ACTIVE && !wallet.warmupProcessId;
+  const isWalletAvailable = useCallback((wallet: IWallet) => {
+    // For funding, a wallet is available if it's active (regardless of warmup process status)
+    // Handle both uppercase and lowercase status values from API
+    const isActive = wallet.status === WalletStatus.ACTIVE || String(wallet.status).toLowerCase() === 'active';
+    
+    // Debug: Log availability check for first few calls
+    if (Math.random() < 0.1) { // Only log 10% of calls to avoid spam
+      console.log('🔍 isWalletAvailable Debug:', {
+        walletId: wallet._id,
+        status: wallet.status,
+        statusType: typeof wallet.status,
+        isActive,
+        walletStatusActive: WalletStatus.ACTIVE,
+        statusLowercase: String(wallet.status).toLowerCase()
+      });
+    }
+    
+    return isActive;
   }, []);
 
   // Handle wallet selection
@@ -147,7 +185,7 @@ export const Funding: React.FC = () => {
   // Handle select all
   const handleSelectAll = useCallback(() => {
     if (filteredWallets && filteredWallets.length > 0) {
-      setSelectedWallets(filteredWallets.map((wallet: IWarmUpWallet) => wallet._id));
+      setSelectedWallets(filteredWallets.map((wallet: IWallet) => wallet._id));
     }
   }, [filteredWallets]);
 
@@ -297,27 +335,27 @@ export const Funding: React.FC = () => {
 
   // Handle fund all
   const handleFundAll = useCallback(() => {
-    const selectedWalletsList = filteredWallets.filter((wallet: IWarmUpWallet) => 
+    const selectedWalletsList = filteredWallets.filter((wallet: IWallet) => 
       selectedWallets.includes(wallet._id)
     );
     if (selectedWalletsList.length > 0) {
-      openFundingModal('batch', selectedWalletsList);
+      openFundingModal('batch', selectedWalletsList as IWarmUpWallet[]);
     }
   }, [filteredWallets, selectedWallets, openFundingModal]);
 
   // Handle random fund
   const handleRandomFund = useCallback(() => {
-    const selectedWalletsList = filteredWallets.filter((wallet: IWarmUpWallet) => 
+    const selectedWalletsList = filteredWallets.filter((wallet: IWallet) => 
       selectedWallets.includes(wallet._id)
     );
     if (selectedWalletsList.length > 0) {
-      openFundingModal('random', selectedWalletsList);
+      openFundingModal('random', selectedWalletsList as IWarmUpWallet[]);
     }
   }, [filteredWallets, selectedWallets, openFundingModal]);
 
   // Handle single wallet fund
-  const handleSingleFund = useCallback((wallet: IWarmUpWallet) => {
-    openFundingModal('single', [wallet]);
+  const handleSingleFund = useCallback((wallet: IWallet) => {
+    openFundingModal('single', [wallet] as IWarmUpWallet[]);
   }, [openFundingModal]);
 
   // Handle refresh
@@ -471,13 +509,36 @@ export const Funding: React.FC = () => {
 
         {/* Wallet Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredWallets.map((wallet: IWarmUpWallet) => {
+          {filteredWallets.map((wallet: IWallet) => {
             const explorerUrl = getExplorerUrl(wallet.chainId, wallet.publicKey || wallet.address);
+            
+            // Debug: Log wallet data for first few wallets
+            if (filteredWallets.indexOf(wallet) < 3) {
+              console.log('🔍 Wallet Card Debug:', {
+                walletId: wallet._id,
+                status: wallet.status,
+                statusType: typeof wallet.status,
+                isAvailable: isWalletAvailable(wallet),
+                hasWarmupProcessId: 'warmupProcessId' in wallet,
+                walletKeys: Object.keys(wallet)
+              });
+            }
+            
+            // Create a proper IWarmUpWallet object with correct status
+            const warmupWallet: IWarmUpWallet = {
+              ...wallet,
+              warmupStatus: 'pending' as any, // Default value
+              transactionCount: 0,
+              totalVolume: BigInt(0),
+              profitLoss: BigInt(0),
+              // Convert status to proper enum if needed
+              status: String(wallet.status).toUpperCase() as WalletStatus
+            };
             
             return (
               <div key={wallet._id} className="relative">
                 <WalletCard
-                  wallet={wallet}
+                  wallet={warmupWallet}
                   isSelected={selectedWallets.includes(wallet._id)}
                   isAvailable={isWalletAvailable(wallet)}
                   onSelect={handleWalletSelection}

@@ -56,6 +56,8 @@ export const Processes: React.FC = () => {
     stopProcessMutation.mutate(id);
   };
 
+
+
   const handleDeleteProcess = (id: string) => {
     if (window.confirm('Are you sure you want to delete this process?')) {
       deleteProcessMutation.mutate(id);
@@ -244,7 +246,7 @@ export const Processes: React.FC = () => {
                         <Eye className="w-3 h-3" />
                       </Button>
                       
-                      {process.status === 'pending' && (
+                      {(process.status === 'pending' || process.status === 'stopped' || process.status === 'completed' || process.status === 'failed') && (
                         <Button
                           variant="success"
                           size="sm"
@@ -255,7 +257,7 @@ export const Processes: React.FC = () => {
                         </Button>
                       )}
                       
-                      {process.status === 'running' && (
+                      {(process.status === 'running' || process.status === 'in_progress') && (
                         <Button
                           variant="warning"
                           size="sm"

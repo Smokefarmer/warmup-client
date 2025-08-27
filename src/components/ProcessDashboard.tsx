@@ -97,6 +97,8 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
     }
   };
 
+
+
   const handleAddWallets = async () => {
     if (!newWalletIds.trim()) {
       toast.error('Please enter wallet IDs');
@@ -191,7 +193,7 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
             Refresh
           </Button>
           
-          {isPending && (
+          {(isPending || isStopped || isCompleted) && (
             <Button
               variant="success"
               onClick={handleStartProcess}
@@ -202,7 +204,7 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
             </Button>
           )}
           
-          {isActive && (
+          {(isActive || process.status === 'in_progress') && (
             <Button
               variant="warning"
               onClick={handleStopProcess}

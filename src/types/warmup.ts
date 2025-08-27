@@ -11,7 +11,6 @@ export interface IWarmupProcess {
   completedWallets: number;
   failedWallets: number;
   configuration: {
-    description: string;
     maxConcurrentWallets: number;
   };
   progress: {
@@ -50,6 +49,7 @@ export interface IWarmupStatistics {
 export interface CreateWarmupProcessDto {
   name: string;
   walletIds: string[];
+  description?: string; // Optional description field
   configuration?: {
     maxConcurrentWallets?: number;
     transactionInterval?: number; // seconds

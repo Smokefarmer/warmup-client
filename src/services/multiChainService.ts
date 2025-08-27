@@ -353,7 +353,10 @@ export class MultiChainService {
     try {
       const response = await api.post('/api/warmup', {
         name,
-        walletIds
+        walletIds,
+        configuration: {
+          maxConcurrentWallets: 5
+        }
       });
       console.log('✅ Multi-chain process created:', response.data);
       return response.data;

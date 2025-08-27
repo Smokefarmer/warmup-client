@@ -38,15 +38,32 @@ export class WarmupService {
 
   // Create new warmup process (POST /warmup)
   static async createWarmupProcess(process: CreateWarmupProcessDto): Promise<IWarmupProcess> {
+    // Clean up the process data to ensure it matches backend expectations
+    const cleanProcessData = {
+      name: process.name,
+      walletIds: process.walletIds,
+      ...(process.description && { description: process.description }),
+      ...(process.configuration && { 
+        configuration: {
+          ...(process.configuration.maxConcurrentWallets && { maxConcurrentWallets: process.configuration.maxConcurrentWallets }),
+          ...(process.configuration.transactionInterval && { transactionInterval: process.configuration.transactionInterval }),
+          ...(process.configuration.maxTransactionsPerWallet && { maxTransactionsPerWallet: process.configuration.maxTransactionsPerWallet }),
+          ...(process.configuration.minTransactionAmount && { minTransactionAmount: process.configuration.minTransactionAmount }),
+          ...(process.configuration.maxTransactionAmount && { maxTransactionAmount: process.configuration.maxTransactionAmount })
+        }
+      })
+    };
+
     // Debug: Log the request details
     console.log('🔍 WarmupService.createWarmupProcess called with:', {
       url: `${this.API_BASE_URL}/warmup`,
-      data: process,
+      originalData: process,
+      cleanedData: cleanProcessData,
       headers: this.headers
     });
 
     try {
-      const response = await api.post(`${this.API_BASE_URL}/warmup`, process, {
+      const response = await api.post(`${this.API_BASE_URL}/warmup`, cleanProcessData, {
         headers: this.headers
       });
       return response.data;
@@ -101,6 +118,8 @@ export class WarmupService {
     });
     return response.data;
   }
+
+
 
   // Stop multi-chain process (new method)
   static async stopMultiChainProcess(id: string): Promise<MultiChainProcess> {
@@ -269,11 +288,16 @@ export class WarmupService {
       const testWalletId = availableWallets[0]._id;
       console.log('🔍 Using wallet ID for test:', testWalletId);
       
-      // Test POST endpoint with real wallet ID
+      // Test POST endpoint with minimal valid data
       const testData = {
         name: 'Test Process',
-        walletIds: [testWalletId]
+        walletIds: [testWalletId],
+        configuration: {
+          maxConcurrentWallets: 1
+        }
       };
+      
+      console.log('🔍 Testing POST with data:', testData);
       
       const postResponse = await api.post(`${this.API_BASE_URL}/warmup`, testData, {
         headers: this.headers
