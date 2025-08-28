@@ -94,25 +94,25 @@ export class MonitoringService {
   // Get system health data
   static async getSystemHealth(): Promise<SystemHealth> {
     try {
-      const response = await api.get(`${this.API_BASE_URL}/monitor/health`);
+      const response = await api.get(`${MonitoringService.API_BASE_URL}/monitor/health`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching system health:', error);
       // Return fallback data if API is not available
-      return this.getFallbackSystemHealth();
+      return MonitoringService.getFallbackSystemHealth();
     }
   }
 
   // Get process statistics
   static async getProcessStatistics(): Promise<ProcessStatistics> {
     try {
-      const response = await api.get(`${this.API_BASE_URL}/monitor/processes`);
+      const response = await api.get(`${MonitoringService.API_BASE_URL}/monitor/processes`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching process statistics:', error);
       // Fallback to existing warmup endpoint
       try {
-        const warmupResponse = await api.get(`${this.API_BASE_URL}/warmup`);
+        const warmupResponse = await api.get(`${MonitoringService.API_BASE_URL}/warmup`);
         const processes = Array.isArray(warmupResponse.data) ? warmupResponse.data : [];
         return {
           processes: processes.map((p: any) => ({
@@ -134,13 +134,13 @@ export class MonitoringService {
   static async getWalletStatistics(type?: string): Promise<WalletStatistics> {
     try {
       const params = type ? `?type=${type}` : '';
-      const response = await api.get(`${this.API_BASE_URL}/monitor/wallets${params}`);
+      const response = await api.get(`${MonitoringService.API_BASE_URL}/monitor/wallets${params}`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching wallet statistics:', error);
       // Fallback to existing wallets endpoint
       try {
-        const walletsResponse = await api.get(`${this.API_BASE_URL}/wallets`);
+        const walletsResponse = await api.get(`${MonitoringService.API_BASE_URL}/wallets`);
         const wallets = Array.isArray(walletsResponse.data) ? walletsResponse.data : [];
         return {
           wallets: wallets.map((w: any) => ({
@@ -170,7 +170,7 @@ export class MonitoringService {
   // Get balance summary
   static async getBalanceSummary(): Promise<BalanceSummary> {
     try {
-      const response = await api.get(`${this.API_BASE_URL}/balance/summary`);
+      const response = await api.get(`${MonitoringService.API_BASE_URL}/balance/summary`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching balance summary:', error);
@@ -187,7 +187,7 @@ export class MonitoringService {
   // Get detailed process statistics (enhanced version)
   static async getDetailedProcessStatistics(id: string): Promise<any> {
     try {
-      const response = await api.get(`${this.API_BASE_URL}/warmup/${id}/statistics`);
+      const response = await api.get(`${MonitoringService.API_BASE_URL}/warmup/${id}/statistics`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching detailed process statistics:', error);
