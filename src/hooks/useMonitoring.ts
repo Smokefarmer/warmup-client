@@ -86,16 +86,23 @@ export const useRealTimeHealth = (options?: {
     queryFn: MonitoringService.getSystemHealth,
     refetchInterval: refreshInterval,
     staleTime: 5000,
-    onSuccess: (data) => {
+  });
+
+  // Handle success and error states with useEffect
+  useEffect(() => {
+    if (health) {
       setIsConnected(true);
       setLastUpdate(new Date());
-      onHealthChange?.(data);
-    },
-    onError: (err) => {
-      setIsConnected(false);
-      onError?.(err as Error);
+      onHealthChange?.(health);
     }
-  });
+  }, [health, onHealthChange]);
+
+  useEffect(() => {
+    if (error) {
+      setIsConnected(false);
+      onError?.(error as Error);
+    }
+  }, [error, onError]);
 
   // Start real-time monitoring
   const startMonitoring = () => {
