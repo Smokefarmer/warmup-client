@@ -1,0 +1,210 @@
+/* Monitoring Dashboard Styles */
+.monitoring-dashboard {
+  @apply min-h-screen bg-gray-50 dark:bg-gray-900;
+}
+
+.dashboard-header {
+  @apply flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm;
+}
+
+.dashboard-grid {
+  @apply grid gap-6;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.system-status-card {
+  @apply transition-all duration-200 hover:shadow-lg;
+}
+
+.status-indicator {
+  @apply p-4 rounded-lg border-l-4;
+}
+
+.services-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-4;
+}
+
+.service-item {
+  @apply flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700;
+}
+
+.status-dot {
+  @apply w-3 h-3 rounded-full;
+}
+
+.metrics-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4;
+}
+
+.metric-card {
+  @apply p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border-l-4 transition-all duration-200 hover:shadow-md;
+}
+
+.strategy-card {
+  @apply p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md;
+}
+
+.recovery-stats {
+  @apply grid grid-cols-1 sm:grid-cols-3 gap-4;
+}
+
+.stat-item {
+  @apply text-center p-4 rounded-lg;
+}
+
+.activity-feed {
+  @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm;
+}
+
+.activity-list {
+  @apply space-y-3 max-h-96 overflow-y-auto;
+}
+
+.activity-item {
+  @apply border-l-4 p-4 rounded-r-lg transition-all duration-200 hover:shadow-sm;
+}
+
+.summary-card {
+  @apply p-3 rounded-lg transition-all duration-200 hover:shadow-sm;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 640px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .services-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .recovery-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .dashboard-header {
+    @apply flex-col items-stretch text-center;
+  }
+  
+  .activity-comparison {
+    @apply flex-col;
+  }
+  
+  .monitoring-section .dashboard-grid {
+    @apply grid-cols-1;
+  }
+}
+
+/* Tablet Optimizations */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Animation Classes */
+.pulse-dot {
+  @apply animate-pulse;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-in {
+  animation: slideIn 0.4s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Custom Scrollbar for Activity Feed */
+.activity-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.activity-list::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-700 rounded;
+}
+
+.activity-list::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded;
+}
+
+.activity-list::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
+}
+
+/* Loading States */
+.loading-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.dark .loading-shimmer {
+  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+  background-size: 200% 100%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Connection Status Indicators */
+.connection-indicator {
+  @apply flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium;
+}
+
+.connection-indicator.connected {
+  @apply bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400;
+}
+
+.connection-indicator.disconnected {
+  @apply bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400;
+}
+
+.connection-indicator.checking {
+  @apply bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400;
+}
+
+/* Live Feed Indicators */
+.live-indicator {
+  @apply flex items-center space-x-1 px-2 py-1 bg-green-100 dark:bg-green-900/20 rounded text-xs font-medium text-green-700 dark:text-green-400;
+}
+
+.live-dot {
+  @apply w-2 h-2 bg-green-500 rounded-full animate-pulse;
+}

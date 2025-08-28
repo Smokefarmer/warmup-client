@@ -11,6 +11,17 @@ import {
   useStopWarmupProcess,
   useAddWalletsToProcess
 } from '../hooks/useWarmupProcesses';
+import { 
+  useSystemHealth, 
+  useProcessLiveMonitoring, 
+  useConnectionStatus 
+} from '../hooks/useMonitoring';
+import { 
+  SystemStatusCard, 
+  MetricsDashboard, 
+  EmergencyRecoveryCard, 
+  ActivityFeed 
+} from './monitoring';
 import { formatDate, formatNumber } from '../utils/formatters';
 import { 
   Play, 
@@ -25,7 +36,10 @@ import {
   CheckCircle,
   XCircle,
   Pause,
-  Settings
+  Settings,
+  Monitor,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface ProcessDashboardProps {
@@ -40,10 +54,22 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
   const [showAddWallets, setShowAddWallets] = useState(false);
   const [newWalletIds, setNewWalletIds] = useState('');
   const [monitoringInterval, setMonitoringInterval] = useState<NodeJS.Timeout | null>(null);
+  const [showMonitoring, setShowMonitoring] = useState(true);
+  const [isLiveMonitoring, setIsLiveMonitoring] = useState(false);
 
   // Data hooks
   const { data: process, isLoading: processLoading, error: processError } = useWarmupProcess(processId);
   const { data: statistics, isLoading: statsLoading, refetch: refetchStats } = useWarmupProcessStatistics(processId);
+  
+  // Monitoring hooks
+  const { data: systemHealth, isLoading: healthLoading, refetch: refetchHealth } = useSystemHealth(30000);
+  const { isFullyConnected } = useConnectionStatus();
+  const { 
+    liveStats, 
+    isMonitoring: isProcessMonitoring, 
+    startLiveMonitoring, 
+    stopLiveMonitoring 
+  } = useProcessLiveMonitoring(processId, isLiveMonitoring);
   
   // Mutation hooks
   const startProcessMutation = useStartWarmupProcess();
@@ -124,6 +150,7 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
 
   const handleRefresh = () => {
     refetchStats();
+    refetchHealth();
     toast.success('Data refreshed');
   };
 
@@ -164,7 +191,7 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
         <div className="flex items-center space-x-4">
           {onBack && (
             <Button variant="secondary" onClick={onBack}>
@@ -172,7 +199,7 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
             </Button>
           )}
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100">
               {process.name}
             </h1>
             {process.description && (
@@ -183,7 +210,19 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
           </div>
         </div>
         
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2 lg:space-x-3">
+          {/* Connection Status Indicator */}
+          <div className={`flex items-center space-x-1 px-2 py-1 rounded text-xs ${
+            isFullyConnected 
+              ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+              : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+          }`}>
+            <div className={`w-2 h-2 rounded-full ${
+              isFullyConnected ? 'bg-green-500' : 'bg-red-500'
+            }`} />
+            <span>{isFullyConnected ? 'Connected' : 'Offline'}</span>
+          </div>
+
           <Button
             variant="secondary"
             onClick={handleRefresh}
@@ -191,6 +230,25 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
+          </Button>
+
+          {/* Live Monitoring Toggle */}
+          <Button
+            variant={isLiveMonitoring ? "primary" : "secondary"}
+            onClick={() => setIsLiveMonitoring(!isLiveMonitoring)}
+            disabled={!isFullyConnected}
+          >
+            <Monitor className="w-4 h-4 mr-2" />
+            {isLiveMonitoring ? 'Stop Live Feed' : 'Start Live Feed'}
+          </Button>
+
+          {/* Show/Hide Monitoring Dashboard */}
+          <Button
+            variant="secondary"
+            onClick={() => setShowMonitoring(!showMonitoring)}
+          >
+            {showMonitoring ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+            {showMonitoring ? 'Hide Monitoring' : 'Show Monitoring'}
           </Button>
           
           {(isPending || isStopped || isCompleted) && (
@@ -496,6 +554,53 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
         </Card>
       </div>
 
+      {/* Monitoring Dashboard */}
+      {showMonitoring && systemHealth && (
+        <div className="monitoring-section space-y-6">
+          <div className="flex items-center space-x-2 mb-4">
+            <Monitor className="w-6 h-6 text-blue-500" />
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              Live Monitoring Dashboard
+            </h2>
+            {isLiveMonitoring && (
+              <div className="flex items-center space-x-1 px-2 py-1 bg-green-100 dark:bg-green-900/20 rounded">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <span className="text-xs text-green-700 dark:text-green-400 font-medium">LIVE</span>
+              </div>
+            )}
+          </div>
+
+          {/* Monitoring Dashboard Grid */}
+          <div className="dashboard-grid grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {/* System Status */}
+            <SystemStatusCard 
+              health={systemHealth} 
+              lastUpdate={new Date()}
+              isConnected={isFullyConnected}
+            />
+            
+            {/* Emergency Recovery */}
+            <EmergencyRecoveryCard 
+              emergencyRecovery={systemHealth.emergencyRecovery}
+              recentActivity={systemHealth.recentActivity}
+            />
+          </div>
+
+          {/* Metrics Dashboard */}
+          <MetricsDashboard health={systemHealth} />
+
+          {/* Activity Feed */}
+          <ActivityFeed 
+            recentActivity={systemHealth.recentActivity}
+            isLive={isLiveMonitoring}
+            onRefresh={() => {
+              refetchHealth();
+              refetchStats();
+            }}
+          />
+        </div>
+      )}
+
       {/* Wallet List */}
       {process.wallets && process.wallets.length > 0 && (
         <Card title="Process Wallets" subtitle={`${process.wallets.length} wallets in this process`}>
@@ -532,7 +637,7 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-900 dark:text-gray-100">
-                        {wallet.nativeTokenBalance} ETH
+                        {wallet.nativeTokenBalance} SOL
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
