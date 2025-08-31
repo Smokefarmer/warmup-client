@@ -5,7 +5,7 @@ import { StatusBadge } from './common/StatusBadge';
 import { CopyButton } from './common/CopyButton';
 import { SkeletonLoader } from './common/SkeletonLoader';
 import { useArchivedWallets, useUnarchiveWallet } from '../hooks/useWallets';
-import { formatAddress, formatCurrency, formatDate } from '../utils/formatters';
+import { formatAddress, formatWalletBalance, formatDate } from '../utils/formatters';
 import { WalletStatus } from '../types/wallet';
 import { getChainName, getExplorerUrl } from '../config/chains';
 import { 
@@ -180,12 +180,12 @@ export const ArchivedWalletsView: React.FC<ArchivedWalletsViewProps> = ({ onBack
                     </td>
                     <td>
                       <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {formatCurrency(BigInt(wallet.totalFunded || '0'))}
+                        {formatWalletBalance(BigInt(wallet.totalFunded || '0'), wallet.chainId)}
                       </span>
                     </td>
                     <td>
                       <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {formatCurrency(BigInt(wallet.nativeTokenBalance || '0'))}
+                        {formatWalletBalance(BigInt(wallet.nativeTokenBalance || '0'), wallet.chainId)}
                       </span>
                     </td>
                     <td>

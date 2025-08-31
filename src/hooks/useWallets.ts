@@ -157,3 +157,46 @@ export const useUnarchiveWallet = () => {
     },
   });
 };
+
+// Sell all tokens in wallet
+export const useSellAllTokens = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: WalletService.sellAllTokens,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      if (data.success) {
+        toast.success(`Sold ${data.totalTokensSold} tokens, recovered ${data.totalSolRecovered} SOL`);
+      } else {
+        toast.error(`Failed to sell tokens: ${data.error}`);
+      }
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || 'Failed to sell tokens';
+      toast.error(`Failed to sell tokens: ${message}`);
+    },
+  });
+};
+
+// Send SOL back to funder
+export const useSendBackToFunder = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ walletId, funderAddress, amount }: { walletId: string; funderAddress: string; amount?: string }) =>
+      WalletService.sendBackToFunder(walletId, funderAddress, amount),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      if (data.success) {
+        toast.success(`Successfully sent ${data.amountSent} SOL back to funder`);
+      } else {
+        toast.error(`Failed to send back to funder: ${data.error}`);
+      }
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || 'Failed to send back to funder';
+      toast.error(`Failed to send back to funder: ${message}`);
+    },
+  });
+};

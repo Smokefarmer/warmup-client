@@ -2,7 +2,7 @@ import React from 'react';
 import { Card } from './common/Card';
 import { useBalanceSummary } from '../hooks/useBalance';
 import { useWallets } from '../hooks/useWallets';
-import { formatCurrency } from '../utils/formatters';
+import { formatMixedBalance } from '../utils/formatters';
 import { WalletStatus } from '../types/wallet';
 import { 
   Wallet, 
@@ -97,7 +97,7 @@ export const BalanceSummary: React.FC = () => {
             <DollarSign className="w-6 h-6 text-green-600" />
           </div>
           <p className="text-2xl font-bold text-green-600">
-            {formatCurrency(totalFunded)}
+            {formatMixedBalance(totalFunded)}
           </p>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Funded</p>
         </div>
@@ -109,7 +109,7 @@ export const BalanceSummary: React.FC = () => {
             <Activity className="w-6 h-6 text-blue-600" />
           </div>
           <p className="text-2xl font-bold text-blue-600">
-            {formatCurrency(averageFunded)}
+            {formatMixedBalance(averageFunded)}
           </p>
           <p className="text-sm text-gray-500 dark:text-gray-400">Average Funded</p>
         </div>
@@ -135,7 +135,7 @@ export const BalanceSummary: React.FC = () => {
                 <DollarSign className="w-6 h-6 text-indigo-600" />
               </div>
               <p className="text-2xl font-bold text-indigo-600">
-                {formatCurrency(BigInt(balanceSummary.totalFunded || '0'))}
+                {formatMixedBalance(BigInt(balanceSummary.totalFunded || '0'))}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">API Total Funded</p>
             </div>

@@ -6,6 +6,8 @@ import { Button } from '../components/common/Button';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { FunderStatusCard } from '../components/FunderStatusCard';
 import { MultiChainFunderStatusCard } from '../components/MultiChainFunderStatusCard';
+import { StealthFundingPanel } from '../components/StealthFundingPanel';
+import { AdvancedFundingPlanner } from '../components/AdvancedFundingPlanner';
 import { WalletCard } from '../components/WalletCard';
 import { FundingModal } from '../components/FundingModal';
 import { TransactionHistory } from '../components/TransactionHistory';
@@ -33,7 +35,10 @@ import {
   Search,
   RefreshCw,
   Network,
-  ExternalLink
+  ExternalLink,
+  Shield,
+  Target,
+  Settings
 } from 'lucide-react';
 
 export const Funding: React.FC = () => {
@@ -43,6 +48,8 @@ export const Funding: React.FC = () => {
   const [selectedWallets, setSelectedWallets] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedChainId, setSelectedChainId] = useState<string>('');
+  const [activeView, setActiveView] = useState<'traditional' | 'stealth' | 'plans'>('traditional');
+  const [activeJobs, setActiveJobs] = useState<string[]>([]);
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
     mode: 'single' | 'batch' | 'random';
@@ -67,9 +74,9 @@ export const Funding: React.FC = () => {
   // Use the same data source as Wallets page - get ALL wallets
   const { data: allWallets = [], isLoading: walletsLoading, error: walletsError } = useWallets();
 
-  // Debug logging for funding history
+  // Debug logging for funding history in development only
   React.useEffect(() => {
-    if (fundingHistory) {
+    if (import.meta.env.DEV && fundingHistory) {
       console.log('🔍 Funding History Data:', {
         type: typeof fundingHistory,
         isArray: Array.isArray(fundingHistory),
@@ -88,17 +95,19 @@ export const Funding: React.FC = () => {
   const wallets = allWallets;
   const isLoading = funderLoading || historyLoading || walletsLoading;
 
-  // Debug: Log which wallet source is being used
-  console.log('🔍 Wallet Source Debug:', {
-    walletSource: 'useWallets (same as Wallets page)',
-    walletsLength: wallets?.length || 0,
-    firstWalletBalance: wallets?.[0]?.nativeTokenBalance || 'N/A',
-    walletsLoading,
-    isLoading,
-    searchTerm,
-    selectedChainId,
-    walletsError
-  });
+  // Debug: Log which wallet source is being used (development only)
+  if (import.meta.env.DEV) {
+    console.log('🔍 Wallet Source Debug:', {
+      walletSource: 'useWallets (same as Wallets page)',
+      walletsLength: wallets?.length || 0,
+      firstWalletBalance: wallets?.[0]?.nativeTokenBalance || 'N/A',
+      walletsLoading,
+      isLoading,
+      searchTerm,
+      selectedChainId,
+      walletsError
+    });
+  }
 
   // Filter wallets based on search term, chain, and availability
   // For funding, show ALL active wallets regardless of warmup process status
@@ -116,8 +125,8 @@ export const Funding: React.FC = () => {
     
     const result = matchesSearch && matchesChain && isAvailable;
     
-    // Debug individual wallet filtering
-    if (!result) {
+    // Debug individual wallet filtering (development only)
+    if (import.meta.env.DEV && !result) {
       console.log('🔍 Wallet filtered out:', {
         address: wallet.publicKey || wallet.address,
         status: wallet.status,
@@ -133,9 +142,9 @@ export const Funding: React.FC = () => {
     return result;
   }) || [];
 
-  // Debug logging for wallet data (moved after filteredWallets is defined)
+  // Debug logging for wallet data (development only)
   React.useEffect(() => {
-    if (wallets && wallets.length > 0) {
+    if (import.meta.env.DEV && wallets && wallets.length > 0) {
       console.log('🔍 Wallet Data:', {
         count: wallets.length,
         firstWallet: wallets[0],
@@ -158,8 +167,8 @@ export const Funding: React.FC = () => {
     // Handle both uppercase and lowercase status values from API
     const isActive = wallet.status === WalletStatus.ACTIVE || String(wallet.status).toLowerCase() === 'active';
     
-    // Debug: Log availability check for first few calls
-    if (Math.random() < 0.1) { // Only log 10% of calls to avoid spam
+    // Debug: Log availability check for first few calls (development only)
+    if (import.meta.env.DEV && Math.random() < 0.1) { // Only log 10% of calls to avoid spam
       console.log('🔍 isWalletAvailable Debug:', {
         walletId: wallet._id,
         status: wallet.status,
@@ -236,9 +245,12 @@ export const Funding: React.FC = () => {
 
   // Handle funding success
   const handleFundingSuccess = useCallback((result: any) => {
-    console.log('🔍 Funding Success - Raw Result:', result);
-    console.log('🔍 Funding Success - Result Type:', typeof result);
-    console.log('🔍 Funding Success - Result Keys:', result ? Object.keys(result) : 'No result');
+    // Debug logging in development only
+    if (import.meta.env.DEV) {
+      console.log('🔍 Funding Success - Raw Result:', result);
+      console.log('🔍 Funding Success - Result Type:', typeof result);
+      console.log('🔍 Funding Success - Result Keys:', result ? Object.keys(result) : 'No result');
+    }
     
     // Handle different response formats
     let transactionCount = 0;
@@ -252,46 +264,48 @@ export const Funding: React.FC = () => {
       // Try different possible structures for transaction count
       if (result.transactions && Array.isArray(result.transactions)) {
         transactionCount = result.transactions.length;
-        console.log('🔍 Found transactions array:', result.transactions);
+        if (import.meta.env.DEV) console.log('🔍 Found transactions array:', result.transactions);
       } else if (result.transactionCount !== undefined) {
         transactionCount = result.transactionCount;
-        console.log('🔍 Found transactionCount:', result.transactionCount);
+        if (import.meta.env.DEV) console.log('🔍 Found transactionCount:', result.transactionCount);
       } else if (result.count !== undefined) {
         transactionCount = result.count;
-        console.log('🔍 Found count:', result.count);
+        if (import.meta.env.DEV) console.log('🔍 Found count:', result.count);
       } else if (result.fundedWallets && Array.isArray(result.fundedWallets)) {
         transactionCount = result.fundedWallets.length;
-        console.log('🔍 Found fundedWallets array:', result.fundedWallets);
+        if (import.meta.env.DEV) console.log('🔍 Found fundedWallets array:', result.fundedWallets);
       } else if (result.walletIds && Array.isArray(result.walletIds)) {
         transactionCount = result.walletIds.length;
-        console.log('🔍 Found walletIds array:', result.walletIds);
+        if (import.meta.env.DEV) console.log('🔍 Found walletIds array:', result.walletIds);
       }
       
       // Try different possible structures for total amount
       if (result.totalAmount) {
         totalAmount = result.totalAmount;
-        console.log('🔍 Found totalAmount:', result.totalAmount);
+        if (import.meta.env.DEV) console.log('🔍 Found totalAmount:', result.totalAmount);
       } else if (result.amount) {
         totalAmount = result.amount;
-        console.log('🔍 Found amount:', result.amount);
+        if (import.meta.env.DEV) console.log('🔍 Found amount:', result.amount);
       } else if (result.totalFunded) {
         totalAmount = result.totalFunded;
-        console.log('🔍 Found totalFunded:', result.totalFunded);
+        if (import.meta.env.DEV) console.log('🔍 Found totalFunded:', result.totalFunded);
       } else if (result.transactions && Array.isArray(result.transactions)) {
         // Calculate total from transactions
         totalAmount = result.transactions.reduce((sum: number, tx: any) => {
           const amount = parseFloat(tx.amount || 0);
           return sum + amount;
         }, 0).toString();
-        console.log('🔍 Calculated total from transactions:', totalAmount);
+        if (import.meta.env.DEV) console.log('🔍 Calculated total from transactions:', totalAmount);
       }
     }
     
-    console.log('🔍 Final Values:', { success, transactionCount, totalAmount });
+    if (import.meta.env.DEV) {
+      console.log('🔍 Final Values:', { success, transactionCount, totalAmount });
+    }
     
     if (success) {
       toast.success(
-        `Successfully funded ${transactionCount} wallet${transactionCount !== 1 ? 's' : ''} with ${totalAmount} ETH`,
+        `Successfully funded ${transactionCount} wallet${transactionCount !== 1 ? 's' : ''} with ${totalAmount} SOL`,
         {
           duration: 5000,
         }
@@ -307,7 +321,9 @@ export const Funding: React.FC = () => {
     }
     
     // Force refresh wallet data after funding
-    console.log('🔍 Forcing wallet data refresh...');
+    if (import.meta.env.DEV) {
+      console.log('🔍 Forcing wallet data refresh...');
+    }
     queryClient.invalidateQueries({ queryKey: walletKeys.lists() });
     queryClient.invalidateQueries({ queryKey: ['availableWallets'] });
     
@@ -358,9 +374,28 @@ export const Funding: React.FC = () => {
     openFundingModal('single', [wallet] as IWarmUpWallet[]);
   }, [openFundingModal]);
 
+  const handleJobStarted = (jobId: string) => {
+    setActiveJobs(prev => [...prev, jobId]);
+  };
+
+  const handleJobComplete = (jobId: string, result: any) => {
+    setActiveJobs(prev => prev.filter(id => id !== jobId));
+    if (import.meta.env.DEV) {
+      console.log('Funding job completed:', result);
+    }
+  };
+
+  const handlePlanCreated = (planId: string) => {
+    if (import.meta.env.DEV) {
+      console.log('Funding plan created:', planId);
+    }
+  };
+
   // Handle refresh
   const handleRefresh = useCallback(() => {
-    console.log('🔄 Manual refresh triggered');
+    if (import.meta.env.DEV) {
+      console.log('🔄 Manual refresh triggered');
+    }
     refetchFunder();
     refetchHistory();
     // Force complete refresh of all wallet data
@@ -397,19 +432,44 @@ export const Funding: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Wallet Funding</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Advanced Funding System</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Fund your multi-chain wallets for warmup operations with advanced batch and random funding options
+            Strategic funding solutions with stealth transfers and intelligent planning
           </p>
         </div>
-        <Button 
-          variant="secondary" 
-          onClick={handleRefresh}
-          className="flex items-center space-x-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          <span>Refresh All Data</span>
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button 
+            variant={activeView === 'traditional' ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => setActiveView('traditional')}
+          >
+            <DollarSign className="w-4 h-4 mr-1" />
+            Traditional
+          </Button>
+          <Button 
+            variant={activeView === 'stealth' ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => setActiveView('stealth')}
+          >
+            <Shield className="w-4 h-4 mr-1" />
+            Stealth
+          </Button>
+          <Button 
+            variant={activeView === 'plans' ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => setActiveView('plans')}
+          >
+            <Target className="w-4 h-4 mr-1" />
+            Plans
+          </Button>
+          <Button 
+            variant="secondary" 
+            size="sm"
+            onClick={handleRefresh}
+          >
+            <RefreshCw className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Funder Status Card */}
@@ -417,19 +477,32 @@ export const Funding: React.FC = () => {
         onRefresh={refetchFunder}
       />
 
-      {/* Quick Actions */}
-      <QuickActions
-        onFundAll={handleFundAll}
-        onRandomFund={handleRandomFund}
-        onRefresh={handleRefresh}
-        selectedCount={selectedWallets.length}
-        totalCount={filteredWallets.length}
-        isLoading={fundWalletMutation.isPending || fundBatchMutation.isPending || fundRandomMutation.isPending}
-        funderAvailable={funderStatus?.available}
-      />
+      {/* Stealth Funding Panel */}
+      {activeView === 'stealth' && (
+        <StealthFundingPanel onJobStarted={handleJobStarted} />
+      )}
 
-      {/* Wallet List */}
-      <Card title="Wallet List" subtitle="Select wallets to fund">
+      {/* Advanced Funding Plans */}
+      {activeView === 'plans' && (
+        <AdvancedFundingPlanner onPlanCreated={handlePlanCreated} />
+      )}
+
+      {/* Quick Actions - Only show in traditional view */}
+      {activeView === 'traditional' && (
+        <QuickActions
+          onFundAll={handleFundAll}
+          onRandomFund={handleRandomFund}
+          onRefresh={handleRefresh}
+          selectedCount={selectedWallets.length}
+          totalCount={filteredWallets.length}
+          isLoading={fundWalletMutation.isPending || fundBatchMutation.isPending || fundRandomMutation.isPending}
+          funderAvailable={funderStatus?.available}
+        />
+      )}
+
+      {/* Wallet List - Only show in traditional view */}
+      {activeView === 'traditional' && (
+        <Card title="Wallet List" subtitle="Select wallets to fund">
         {/* Controls */}
         <div className="mb-6 space-y-4">
           {/* Search and Filter */}
@@ -512,8 +585,8 @@ export const Funding: React.FC = () => {
           {filteredWallets.map((wallet: IWallet) => {
             const explorerUrl = getExplorerUrl(wallet.chainId, wallet.publicKey || wallet.address);
             
-            // Debug: Log wallet data for first few wallets
-            if (filteredWallets.indexOf(wallet) < 3) {
+            // Debug: Log wallet data for first few wallets (development only)
+            if (import.meta.env.DEV && filteredWallets.indexOf(wallet) < 3) {
               console.log('🔍 Wallet Card Debug:', {
                 walletId: wallet._id,
                 status: wallet.status,
@@ -577,7 +650,8 @@ export const Funding: React.FC = () => {
             </p>
           </div>
         )}
-      </Card>
+        </Card>
+      )}
 
       {/* Transaction History */}
       <TransactionHistory

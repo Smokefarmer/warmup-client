@@ -9,14 +9,16 @@ import { VirtualWalletList } from '../components/VirtualWalletList';
 import { BalanceSummary } from '../components/BalanceSummary';
 import { MultiChainWalletModal } from '../components/MultiChainWalletModal';
 import { GenerateWalletModal } from '../components/GenerateWalletModal';
+import { StrategicWalletGenerator } from '../components/StrategicWalletGenerator';
 import { ArchivedWalletsView } from '../components/ArchivedWalletsView';
+import { BulkWalletCleanup } from '../components/BulkWalletCleanup';
 import { useWallets, useUpdateWalletStatus, useUpdateWalletType, useArchiveWallet } from '../hooks/useWallets';
 import { useWalletSelection } from '../hooks/useWalletSelection';
 import { useScanProgress } from '../hooks/useScanProgress';
 import { useUpdateTotalFundedForWallets } from '../hooks/useBalance';
 
 import { useMultiChain } from '../hooks/useMultiChain';
-import { formatAddress, formatCurrency, formatDate } from '../utils/formatters';
+import { formatAddress, formatWalletBalance, formatDate, formatMixedBalance } from '../utils/formatters';
 import { WalletType, WalletStatus, ChainId } from '../types/wallet';
 import { getChainName, getChainDecimals, getChainSymbol } from '../config/chains';
 import { 
@@ -40,16 +42,24 @@ import {
   ExternalLink,
   Zap,
   Archive,
-  ArrowRight
+  ArrowRight,
+  Target,
+  Settings
 } from 'lucide-react';
 
 export const Wallets: React.FC = () => {
   const [showResults, setShowResults] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [showStrategicGenerator, setShowStrategicGenerator] = useState(false);
   const [showArchivedWallets, setShowArchivedWallets] = useState(false);
+  const [showBulkCleanup, setShowBulkCleanup] = useState(false);
+  const [activeJobs, setActiveJobs] = useState<string[]>([]);
 
-  console.log('🔍 Wallets Component - About to call useWallets hook');
+  // Only log in development
+  if (import.meta.env.DEV) {
+    console.log('🔍 Wallets Component - About to call useWallets hook');
+  }
   const { data: wallets = [], isLoading, error } = useWallets();
   
   // Multi-chain functionality
@@ -65,6 +75,7 @@ export const Wallets: React.FC = () => {
   // Wallet selection management
   const {
     selectedWallets,
+    selectedWalletsData,
     selectedWalletIds,
     filteredWallets,
     filters,
@@ -94,15 +105,17 @@ export const Wallets: React.FC = () => {
 
 
 
-  // Debug logging
-  console.log('🔍 Wallets Debug:', {
-    wallets,
-    isLoading,
-    error,
-    walletsType: typeof wallets,
-    isArray: Array.isArray(wallets),
-    length: wallets?.length
-  });
+  // Debug logging (development only)
+  if (import.meta.env.DEV) {
+    console.log('🔍 Wallets Debug:', {
+      wallets,
+      isLoading,
+      error,
+      walletsType: typeof wallets,
+      isArray: Array.isArray(wallets),
+      length: wallets?.length
+    });
+  }
   const updateStatusMutation = useUpdateWalletStatus();
   const updateTypeMutation = useUpdateWalletType();
   const archiveMutation = useArchiveWallet();
@@ -184,13 +197,28 @@ export const Wallets: React.FC = () => {
   };
 
   const handleCreateWallet = (wallet: any) => {
-    console.log('Wallet created successfully:', wallet);
+    if (import.meta.env.DEV) {
+      console.log('Wallet created successfully:', wallet);
+    }
     // The wallet list will automatically refresh due to query invalidation
   };
 
   const handleGenerateWallet = (wallet: any) => {
-    console.log('Wallet generated successfully:', wallet);
+    if (import.meta.env.DEV) {
+      console.log('Wallet generated successfully:', wallet);
+    }
     // The wallet list will automatically refresh due to query invalidation
+  };
+
+  const handleJobStarted = (jobId: string) => {
+    setActiveJobs(prev => [...prev, jobId]);
+  };
+
+  const handleJobComplete = (jobId: string, result: any) => {
+    setActiveJobs(prev => prev.filter(id => id !== jobId));
+    if (import.meta.env.DEV) {
+      console.log('Strategic wallet generation completed:', result);
+    }
   };
 
   // Show archived wallets view
@@ -249,8 +277,8 @@ export const Wallets: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Wallets</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your multi-chain wallet collection</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Strategic Wallet Management</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Advanced wallet generation and management system</p>
         </div>
         <div className="flex space-x-2">
           <Button 
@@ -259,8 +287,15 @@ export const Wallets: React.FC = () => {
             onClick={() => setShowArchivedWallets(true)}
           >
             <Archive className="w-4 h-4 mr-2" />
-            Archived Wallets
-            <ArrowRight className="w-4 h-4 ml-2" />
+            Archived
+          </Button>
+          <Button 
+            variant={showStrategicGenerator ? 'primary' : 'secondary'} 
+            size="md"
+            onClick={() => setShowStrategicGenerator(!showStrategicGenerator)}
+          >
+            <Target className="w-4 h-4 mr-2" />
+            Strategic Generation
           </Button>
           <Button 
             variant="secondary" 
@@ -268,18 +303,25 @@ export const Wallets: React.FC = () => {
             onClick={() => setShowGenerateModal(true)}
           >
             <Zap className="w-4 h-4 mr-2" />
-            Generate Wallet
+            Quick Generate
           </Button>
           <Button 
-            variant="primary" 
+            variant="secondary" 
             size="md"
             onClick={() => setShowCreateModal(true)}
           >
             <Plus className="w-4 h-4 mr-2" />
-            Import Wallet
+            Import
           </Button>
         </div>
       </div>
+
+      {/* Strategic Wallet Generation */}
+      {showStrategicGenerator && (
+        <StrategicWalletGenerator 
+          onJobStarted={handleJobStarted}
+        />
+      )}
 
       {/* Scan and Update Total Funded Actions */}
       <Card>
@@ -350,13 +392,23 @@ export const Wallets: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={clearSelection}
-              >
-                Clear Selection
-              </Button>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="warning"
+                  size="sm"
+                  onClick={() => setShowBulkCleanup(true)}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Bulk Cleanup
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={clearSelection}
+                >
+                  Clear Selection
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -537,12 +589,12 @@ export const Wallets: React.FC = () => {
                     </td>
                     <td>
                       <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {formatCurrency(BigInt(wallet.totalFunded || '0'))}
+                        {formatWalletBalance(BigInt(wallet.totalFunded || '0'), wallet.chainId)}
                       </span>
                     </td>
                     <td>
                       <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {formatCurrency(BigInt(wallet.nativeTokenBalance || '0'))}
+                        {formatWalletBalance(BigInt(wallet.nativeTokenBalance || '0'), wallet.chainId)}
                       </span>
                     </td>
                     <td>
@@ -664,9 +716,9 @@ export const Wallets: React.FC = () => {
                     {result.success && (
                       <div className="mt-2 text-sm">
                         <span className="text-gray-600 dark:text-gray-400">
-                          Total Funded: {formatCurrency(BigInt(result.oldTotalFunded))} →{' '}
+                          Total Funded: {formatMixedBalance(BigInt(result.oldTotalFunded))} →{' '}
                           <span className="font-medium text-green-600 dark:text-green-400">
-                            {formatCurrency(BigInt(result.newTotalFunded))}
+                            {formatMixedBalance(BigInt(result.newTotalFunded))}
                           </span>
                         </span>
                       </div>
@@ -735,6 +787,35 @@ export const Wallets: React.FC = () => {
         onClose={() => setShowGenerateModal(false)}
         onSuccess={handleGenerateWallet}
       />
+
+      {/* Bulk Wallet Cleanup Modal */}
+      {showBulkCleanup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Bulk Wallet Cleanup
+              </h2>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowBulkCleanup(false)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="p-6">
+              <BulkWalletCleanup
+                wallets={selectedWalletsData}
+                onComplete={() => {
+                  setShowBulkCleanup(false);
+                  clearSelection();
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

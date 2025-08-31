@@ -9,22 +9,27 @@ const api = axios.create({
   },
 });
 
-// Debug the base URL
-console.log('🔧 API Configuration:', {
-  VITE_API_URL: import.meta.env.VITE_API_URL,
-  baseURL: api.defaults.baseURL,
-  fullBaseURL: `${api.defaults.baseURL}`
-});
+// Debug the base URL in development only
+if (import.meta.env.DEV) {
+  console.log('🔧 API Configuration:', {
+    VITE_API_URL: import.meta.env.VITE_API_URL,
+    baseURL: api.defaults.baseURL,
+    fullBaseURL: `${api.defaults.baseURL}`
+  });
+}
 
 // Request interceptor for adding auth tokens if needed
 api.interceptors.request.use(
   (config) => {
-    console.log('🚀 API Request:', {
-      method: config.method?.toUpperCase(),
-      url: config.url,
-      baseURL: config.baseURL,
-      fullURL: `${config.baseURL}${config.url}`
-    });
+    // Only log in development
+    if (import.meta.env.DEV) {
+      console.log('🚀 API Request:', {
+        method: config.method?.toUpperCase(),
+        url: config.url,
+        baseURL: config.baseURL,
+        fullURL: `${config.baseURL}${config.url}`
+      });
+    }
     // Add any auth headers here if needed
     return config;
   },
@@ -37,14 +42,18 @@ api.interceptors.request.use(
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => {
-    console.log('✅ API Response:', {
-      status: response.status,
-      url: response.config.url,
-      dataLength: response.data?.length || 'N/A'
-    });
+    // Only log in development
+    if (import.meta.env.DEV) {
+      console.log('✅ API Response:', {
+        status: response.status,
+        url: response.config.url,
+        dataLength: response.data?.length || 'N/A'
+      });
+    }
     return response;
   },
   (error) => {
+    // Always log errors
     console.error('❌ API Error:', {
       status: error.response?.status,
       url: error.config?.url,

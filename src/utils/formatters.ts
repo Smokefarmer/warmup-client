@@ -115,3 +115,32 @@ export const getStatusColor = (status: string): string => {
       return 'info';
   }
 };
+
+// Get chain-specific currency info
+export const getChainCurrencyInfo = (chainId: number) => {
+  switch (chainId) {
+    case 101: // Solana Mainnet
+    case 102: // Solana Devnet  
+    case 103: // Solana Testnet
+      return { symbol: 'SOL', decimals: 9 };
+    case 8453: // Base
+      return { symbol: 'ETH', decimals: 18 };
+    default:
+      return { symbol: 'ETH', decimals: 18 }; // Default fallback
+  }
+};
+
+// Format wallet balance with correct chain decimals and symbol
+export const formatWalletBalance = (balance: bigint | string | number, chainId: number): string => {
+  const { symbol, decimals } = getChainCurrencyInfo(chainId);
+  return formatCurrency(balance, symbol, decimals);
+};
+
+// Format mixed chain balances (defaults to most common chain in your system)
+export const formatMixedBalance = (balance: bigint | string | number, preferredSymbol?: string): string => {
+  // For mixed wallets, default to SOL since that's your main chain
+  // You can change this based on your primary chain
+  const symbol = preferredSymbol || 'SOL';
+  const decimals = symbol === 'SOL' ? 9 : 18;
+  return formatCurrency(balance, symbol, decimals);
+};

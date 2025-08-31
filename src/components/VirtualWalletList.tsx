@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { IWarmUpWallet, IWallet } from '../types/wallet';
-import { formatAddress, formatCurrency } from '../utils/formatters';
+import { formatAddress, formatWalletBalance } from '../utils/formatters';
 import { StatusBadge } from './common/StatusBadge';
 import { Wallet } from 'lucide-react';
 
@@ -112,7 +112,7 @@ export const VirtualWalletList: React.FC<VirtualWalletListProps> = ({
                       </span>
                       <StatusBadge status={wallet.status} />
                       <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {formatCurrency(BigInt(wallet.totalFunded || '0'))}
+                        {formatWalletBalance(BigInt(wallet.totalFunded || '0'), wallet.chainId)}
                       </span>
                       <span className="text-sm text-gray-600 dark:text-gray-400">
                         {wallet.buyTxCount + wallet.sellTxCount} tx

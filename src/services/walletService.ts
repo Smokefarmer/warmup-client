@@ -2,6 +2,37 @@ import api from './api';
 import { IWallet, CreateWalletDto, CreateBatchWalletsDto, WalletStatus } from '../types/wallet';
 import { MultiChainService } from './multiChainService';
 
+// Strategic wallet generation types
+export interface StrategicWalletGenerationConfig {
+  count: number;
+  planName: string;
+  walletTypeDistribution: Array<{
+    type: 'TrendTrader' | 'MajorTrader' | 'Holder' | 'Trencher';
+    count: number;
+  }>;
+  withDelays?: boolean;
+  delayConfig?: {
+    minMs: number;
+    maxMs: number;
+  };
+}
+
+export interface JobStatus {
+  id: string;
+  type: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  progress: {
+    current: number;
+    total: number;
+    percentage: number;
+    message: string;
+  };
+  startedAt: string;
+  estimatedCompletionTime?: string;
+  executionTime?: number;
+  result?: any;
+}
+
 export class WalletService {
   // Get all wallets
   static async getWallets(): Promise<IWallet[]> {
@@ -119,6 +150,66 @@ export class WalletService {
       return response.data;
     } catch (error) {
       console.error('Error fetching wallet statistics:', error);
+      throw error;
+    }
+  }
+
+  // Sell all tokens in a wallet
+  static async sellAllTokens(walletId: string) {
+    try {
+      const response = await api.post(`/api/wallets/${walletId}/sell-all`);
+      return response.data;
+    } catch (error) {
+      console.error('Error selling all tokens:', error);
+      throw error;
+    }
+  }
+
+  // Send SOL back to funder
+  static async sendBackToFunder(walletId: string, funderAddress: string, amount?: string) {
+    try {
+      const body: any = { funderAddress };
+      if (amount) {
+        body.amount = amount;
+      }
+      
+      const response = await api.post(`/api/wallets/${walletId}/send-back-to-funder`, body);
+      return response.data;
+    } catch (error) {
+      console.error('Error sending back to funder:', error);
+      throw error;
+    }
+  }
+
+  // Strategic wallet generation
+  static async generateStrategicWallets(config: StrategicWalletGenerationConfig): Promise<{ jobId: string }> {
+    try {
+      const response = await api.post('/api/strategic-wallets/generate', config);
+      return response.data;
+    } catch (error) {
+      console.error('Error generating strategic wallets:', error);
+      throw error;
+    }
+  }
+
+  // Get job status
+  static async getJobStatus(jobId: string): Promise<JobStatus> {
+    try {
+      const response = await api.get(`/api/strategic-wallets/jobs/${jobId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching job status:', error);
+      throw error;
+    }
+  }
+
+  // Get all jobs
+  static async getAllJobs(): Promise<JobStatus[]> {
+    try {
+      const response = await api.get('/api/strategic-wallets/jobs');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
       throw error;
     }
   }

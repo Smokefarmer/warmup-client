@@ -3,8 +3,9 @@ import { Card } from './common/Card';
 import { Button } from './common/Button';
 import { CopyButton } from './common/CopyButton';
 import { StatusBadge } from './common/StatusBadge';
+import { WalletManagementActions } from './WalletManagementActions';
 import { IWarmUpWallet } from '../types/wallet';
-import { formatCurrency, formatAddress } from '../utils/formatters';
+import { formatWalletBalance, formatAddress } from '../utils/formatters';
 import { Wallet, Send, CheckCircle, XCircle } from 'lucide-react';
 
 interface WalletCardProps {
@@ -85,7 +86,7 @@ export const WalletCard: React.FC<WalletCardProps> = ({
         <div className="flex justify-between items-center">
           <span className="text-xs text-gray-500 dark:text-gray-400">Balance:</span>
           <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {formatCurrency(BigInt(wallet.nativeTokenBalance || '0'))}
+            {formatWalletBalance(BigInt(wallet.nativeTokenBalance || '0'), wallet.chainId)}
           </span>
         </div>
 
@@ -117,21 +118,30 @@ export const WalletCard: React.FC<WalletCardProps> = ({
       </div>
 
       {/* Action Buttons */}
-      <div className="flex justify-between items-center">
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={handleFundClick}
-          disabled={!isAvailable}
-          className="flex-1 mr-2"
-        >
-          <Send className="w-3 h-3 mr-1" />
-          Fund
-        </Button>
+      <div className="space-y-3">
+        <div className="flex justify-between items-center">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleFundClick}
+            disabled={!isAvailable}
+            className="flex-1 mr-2"
+          >
+            <Send className="w-3 h-3 mr-1" />
+            Fund
+          </Button>
 
-        {isSelected && (
-          <CheckCircle className="w-4 h-4 text-primary-600" />
-        )}
+          {isSelected && (
+            <CheckCircle className="w-4 h-4 text-primary-600" />
+          )}
+        </div>
+
+        {/* Wallet Management Actions */}
+        <WalletManagementActions 
+          wallet={wallet} 
+          size="sm" 
+          showLabels={false}
+        />
       </div>
 
       {/* Selection Indicator */}

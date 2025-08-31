@@ -79,3 +79,41 @@ export const isValidPositiveInteger = (value: number): boolean => {
 export const isValidNonNegativeInteger = (value: number): boolean => {
   return Number.isInteger(value) && value >= 0;
 };
+
+import bs58 from 'bs58';
+
+// Validate Solana address format (base58)
+export const isValidSolanaAddress = (address: string): boolean => {
+  if (!address || typeof address !== 'string') return false;
+  
+  // Solana addresses are base58 encoded and typically 32-44 characters long
+  const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+  return base58Regex.test(address);
+};
+
+// Convert hex address to base58 (if needed)
+export const convertHexToBase58 = (hexAddress: string): string | null => {
+  if (!hexAddress || typeof hexAddress !== 'string') return null;
+  
+  // Remove 0x prefix if present
+  const cleanHex = hexAddress.startsWith('0x') ? hexAddress.slice(2) : hexAddress;
+  
+  // Check if it's already base58
+  if (isValidSolanaAddress(cleanHex)) {
+    return cleanHex;
+  }
+  
+  // If it's hex, convert to base58
+  if (/^[0-9a-fA-F]+$/.test(cleanHex)) {
+    try {
+      // Convert hex to bytes, then to base58
+      const bytes = Buffer.from(cleanHex, 'hex');
+      return bs58.encode(bytes);
+    } catch (error) {
+      console.error('Failed to convert hex to base58:', error);
+      return null;
+    }
+  }
+  
+  return null;
+};

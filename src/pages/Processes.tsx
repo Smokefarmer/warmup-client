@@ -7,6 +7,7 @@ import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { WarmupProcessModal } from '../components/WarmupProcessModal';
 import { ProcessDashboard } from '../components/ProcessDashboard';
+import { ProgressDashboard } from '../components/ProgressDashboard';
 import { useWarmupProcesses, useStartWarmupProcess, useStopWarmupProcess, useDeleteWarmupProcess } from '../hooks/useWarmupProcesses';
 import { WarmupService } from '../services/warmupService';
 import { formatDate, formatNumber } from '../utils/formatters';
@@ -20,7 +21,8 @@ import {
   Users,
   TrendingUp,
   Eye,
-  ArrowLeft
+  ArrowLeft,
+  BarChart3
 } from 'lucide-react';
 
 export const Processes: React.FC = () => {
@@ -33,6 +35,8 @@ export const Processes: React.FC = () => {
     search: ''
   });
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showProgressDashboard, setShowProgressDashboard] = useState(false);
+  const [activeJobs, setActiveJobs] = useState<string[]>([]);
 
   const { data: processes, isLoading, error } = useWarmupProcesses();
   const startProcessMutation = useStartWarmupProcess();
@@ -133,10 +137,18 @@ export const Processes: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Warmup Processes</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your wallet warmup processes</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Process Management</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage warmup processes and monitor real-time operations</p>
         </div>
         <div className="flex space-x-2">
+          <Button 
+            variant={showProgressDashboard ? 'primary' : 'secondary'} 
+            size="md"
+            onClick={() => setShowProgressDashboard(!showProgressDashboard)}
+          >
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Progress Dashboard
+          </Button>
           <Button 
             variant="secondary" 
             size="md"
@@ -154,6 +166,19 @@ export const Processes: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Progress Dashboard */}
+      {showProgressDashboard && (
+        <ProgressDashboard 
+          activeJobIds={activeJobs} 
+          onJobComplete={(jobId, result) => {
+            setActiveJobs(prev => prev.filter(id => id !== jobId));
+            if (import.meta.env.DEV) {
+              console.log('Process job completed:', result);
+            }
+          }} 
+        />
+      )}
 
       {/* Filters */}
       <Card>

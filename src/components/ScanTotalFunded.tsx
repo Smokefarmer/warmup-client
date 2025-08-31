@@ -10,7 +10,7 @@ import { useWalletSelection } from '../hooks/useWalletSelection';
 import { useScanProgress } from '../hooks/useScanProgress';
 import { useUpdateTotalFundedForWallets } from '../hooks/useBalance';
 import { useDebounce } from '../hooks/useDebounce';
-import { formatAddress, formatCurrency } from '../utils/formatters';
+import { formatAddress, formatWalletBalance, formatMixedBalance } from '../utils/formatters';
 import { WalletType, WalletStatus } from '../types/wallet';
 import { 
   Search, 
@@ -427,12 +427,12 @@ export const ScanTotalFunded: React.FC = () => {
                     </td>
                     <td>
                       <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {formatCurrency(BigInt(wallet.totalFunded || '0'))}
+                        {formatWalletBalance(BigInt(wallet.totalFunded || '0'), wallet.chainId)}
                       </span>
                     </td>
                     <td>
                       <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {formatCurrency(BigInt(wallet.nativeTokenBalance || '0'))}
+                        {formatWalletBalance(BigInt(wallet.nativeTokenBalance || '0'), wallet.chainId)}
                       </span>
                     </td>
                     <td>
@@ -508,9 +508,9 @@ export const ScanTotalFunded: React.FC = () => {
                     {result.success && (
                       <div className="mt-2 text-sm">
                         <span className="text-gray-600 dark:text-gray-400">
-                          Total Funded: {formatCurrency(BigInt(result.oldTotalFunded))} →{' '}
+                          Total Funded: {formatMixedBalance(BigInt(result.oldTotalFunded))} →{' '}
                           <span className="font-medium text-green-600 dark:text-green-400">
-                            {formatCurrency(BigInt(result.newTotalFunded))}
+                            {formatMixedBalance(BigInt(result.newTotalFunded))}
                           </span>
                         </span>
                       </div>
