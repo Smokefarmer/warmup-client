@@ -39,7 +39,7 @@ export const WalletCleanupResults: React.FC<WalletCleanupResultsProps> = ({
         Cleanup Results
         {walletAddress && (
           <span className="block text-xs font-normal text-gray-500 dark:text-gray-400 mt-1">
-            Wallet: {walletAddress.slice(0, 8)}...{walletAddress.slice(-8)}
+            Wallet: {walletAddress?.slice(0, 8) || 'N/A'}...{walletAddress?.slice(-8) || 'N/A'}
           </span>
         )}
       </h3>

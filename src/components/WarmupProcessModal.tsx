@@ -325,7 +325,7 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
                                   <div className="flex items-center mb-1">
                                     <Wallet className="w-4 h-4 text-gray-400 mr-2" />
                                     <span className="font-mono text-sm text-gray-900 dark:text-gray-100">
-                                      {(wallet.publicKey || wallet.address).slice(0, 8)}...
+                                      {(wallet.publicKey || wallet.address)?.slice(0, 8) || 'N/A'}...
                                     </span>
                                     {explorerUrl && (
                                       <a

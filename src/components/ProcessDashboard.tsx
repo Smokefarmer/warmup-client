@@ -627,7 +627,7 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
                   <tr key={wallet._id}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {wallet.address.slice(0, 8)}...{wallet.address.slice(-6)}
+                        {wallet?.address?.slice(0, 8) || 'N/A'}...{wallet?.address?.slice(-6) || 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

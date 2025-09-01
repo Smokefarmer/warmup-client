@@ -185,7 +185,7 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
                     <span className="text-sm text-gray-600 dark:text-gray-400">Address:</span>
                     <div className="flex items-center gap-1">
                       <span className="font-mono text-xs text-gray-600 dark:text-gray-400 truncate max-w-24">
-                        {baseInfo.funderAddress.slice(0, 8)}...
+                        {baseInfo?.funderAddress?.slice(0, 8) || 'N/A'}...
                       </span>
                     <Button
                       variant="secondary"
@@ -236,7 +236,7 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
                     <span className="text-sm text-gray-600 dark:text-gray-400">Address:</span>
                     <div className="flex items-center gap-1">
                       <span className="font-mono text-xs text-gray-600 dark:text-gray-400 truncate max-w-24">
-                        {solanaInfo.funderAddress.slice(0, 8)}...
+                        {solanaInfo?.funderAddress?.slice(0, 8) || 'N/A'}...
                       </span>
                     <Button
                       variant="secondary"
@@ -315,7 +315,7 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
                 <span className="text-sm text-gray-600 dark:text-gray-400">Address:</span>
                 <div className="flex items-center gap-1">
                   <span className="font-mono text-xs text-gray-600 dark:text-gray-400 truncate max-w-24">
-                    {fallbackFunderStatus.funderAddress.slice(0, 8)}...
+                    {fallbackFunderStatus?.funderAddress?.slice(0, 8) || 'N/A'}...
                   </span>
                   <Button
                     variant="secondary"

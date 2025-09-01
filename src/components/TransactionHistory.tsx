@@ -150,8 +150,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                   <div className="flex items-center space-x-1">
                     <span className="text-sm font-mono text-gray-900 dark:text-gray-100">
                       {transaction.txHash ? 
-                        `${transaction.txHash.slice(0, 8)}...${transaction.txHash.slice(-6)}` :
-                        transaction.id.slice(0, 8)
+                        `${transaction.txHash?.slice(0, 8) || 'N/A'}...${transaction.txHash?.slice(-6) || 'N/A'}` :
+                        transaction.id?.slice(0, 8) || 'N/A'
                       }
                     </span>
                     {transaction.txHash && (

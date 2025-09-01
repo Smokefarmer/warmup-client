@@ -362,7 +362,7 @@ export const SolanaWarmupPanel: React.FC = () => {
                 {transactionLogs.slice(0, 10).map((tx: any, index: number) => (
                   <tr key={index}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">
-                      {tx.hash ? `${tx.hash.slice(0, 8)}...${tx.hash.slice(-8)}` : 'N/A'}
+                      {tx.hash ? `${tx.hash?.slice(0, 8) || 'N/A'}...${tx.hash?.slice(-8) || 'N/A'}` : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
