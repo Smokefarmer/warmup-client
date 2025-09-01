@@ -51,7 +51,7 @@ export const Funding: React.FC = () => {
   // Filter available wallets with all filters applied
   const availableWallets = wallets.filter(wallet => {
     // Base filter: only active wallets
-    const isActive = wallet.status === 'ACTIVE' || wallet.status === 'active';
+    const isActive = wallet.status === WalletStatus.ACTIVE;
     if (!isActive) return false;
 
     // Search filter

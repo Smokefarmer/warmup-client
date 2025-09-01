@@ -86,7 +86,7 @@ export const Wallets: React.FC = () => {
 
   const handleStatusUpdate = async (walletId: string, status: WalletStatus) => {
     try {
-      await updateStatusMutation.mutateAsync({ walletId, status });
+      await updateStatusMutation.mutateAsync({ id: walletId, status });
       refetch();
     } catch (error) {
       console.error('Failed to update wallet status:', error);
