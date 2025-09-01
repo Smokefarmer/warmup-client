@@ -8,24 +8,31 @@ interface StatusBadgeProps {
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = '' }) => {
   const getStatusConfig = (status: WalletStatus | string) => {
-    // Handle WalletStatus enum values
-    switch (status) {
-      case WalletStatus.ACTIVE:
+    // Normalize status to lowercase for comparison
+    const normalizedStatus = status.toLowerCase();
+    
+    // Handle both enum values and lowercase string values
+    switch (normalizedStatus) {
+      case WalletStatus.ACTIVE.toLowerCase():
+      case 'active':
         return {
           label: 'Active',
           className: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800'
         };
-      case WalletStatus.PAUSED:
+      case WalletStatus.PAUSED.toLowerCase():
+      case 'paused':
         return {
           label: 'Paused',
           className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800'
         };
-      case WalletStatus.BANNED:
+      case WalletStatus.BANNED.toLowerCase():
+      case 'banned':
         return {
           label: 'Banned',
           className: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800'
         };
-      case WalletStatus.ARCHIVED:
+      case WalletStatus.ARCHIVED.toLowerCase():
+      case 'archived':
         return {
           label: 'Archived',
           className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400 border-gray-200 dark:border-gray-800'

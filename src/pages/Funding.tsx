@@ -9,7 +9,7 @@ import { useWallets } from '../hooks/useWallets';
 import { useMultiChain } from '../hooks/useMultiChain';
 import { WalletService } from '../services/walletService';
 import { WalletStatus, WalletType } from '../types/wallet';
-import { formatAddress } from '../utils/formatters';
+import { formatAddress, formatWalletBalance } from '../utils/formatters';
 import { 
   RefreshCw, 
   Wallet, 
@@ -50,9 +50,9 @@ export const Funding: React.FC = () => {
 
   // Filter available wallets with all filters applied
   const availableWallets = wallets.filter(wallet => {
-    // Base filter: only active wallets
-    const isActive = wallet.status === WalletStatus.ACTIVE;
-    if (!isActive) return false;
+    // Base filter: exclude only archived wallets (handle both uppercase and lowercase)
+    const isArchived = wallet.status === WalletStatus.ARCHIVED || wallet.status === 'archived';
+    if (isArchived) return false;
 
     // Search filter
     const matchesSearch = !searchTerm || 
@@ -65,8 +65,10 @@ export const Funding: React.FC = () => {
     // Type filter
     const matchesType = !selectedType || wallet.type === selectedType;
 
-    // Status filter (additional status filtering beyond active)
-    const matchesStatus = !selectedStatus || wallet.status === selectedStatus;
+    // Status filter (additional status filtering beyond active) - handle case insensitive
+    const matchesStatus = !selectedStatus || 
+      wallet.status === selectedStatus || 
+      wallet.status.toLowerCase() === selectedStatus.toLowerCase();
 
     // Balance filters
     const balance = parseFloat(wallet.nativeTokenBalance || '0');
@@ -447,7 +449,7 @@ export const Funding: React.FC = () => {
                               ? 'text-red-500' 
                               : 'text-green-600'
                           }`}>
-                            Balance: {wallet.nativeTokenBalance || '0'} SOL
+                            Balance: {formatWalletBalance(wallet.nativeTokenBalance || '0', wallet.chainId)}
                           </span>
                         </div>
                       </div>

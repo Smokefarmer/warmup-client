@@ -68,7 +68,9 @@ export const Wallets: React.FC = () => {
       wallet.type.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesType = !selectedType || wallet.type === selectedType;
-    const matchesStatus = !selectedStatus || wallet.status === selectedStatus;
+    const matchesStatus = !selectedStatus || 
+      wallet.status === selectedStatus || 
+      wallet.status.toLowerCase() === selectedStatus.toLowerCase();
     const matchesChain = !selectedChain || wallet.chainId === parseInt(selectedChain);
     
     return matchesSearch && matchesType && matchesStatus && matchesChain;
@@ -370,10 +372,12 @@ export const Wallets: React.FC = () => {
                 <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                   {(() => {
                     const totalBalance = filteredWallets.reduce((sum, wallet) => {
-                      const balance = parseFloat(wallet.nativeTokenBalance || '0');
+                      // Convert lamports to SOL properly based on chain
+                      const { decimals } = wallet.chainId === 101 ? { decimals: 9 } : { decimals: 18 };
+                      const balance = parseFloat(wallet.nativeTokenBalance || '0') / Math.pow(10, decimals);
                       return sum + balance;
                     }, 0);
-                    return totalBalance > 0 ? `${totalBalance.toFixed(4)} SOL` : '0 SOL';
+                    return totalBalance > 0 ? `${totalBalance.toFixed(6)} SOL` : '0 SOL';
                   })()}
                 </p>
               </div>
@@ -447,7 +451,7 @@ export const Wallets: React.FC = () => {
                       </td>
                       <td>
                         <div className="flex items-center space-x-2">
-                          {wallet.status === WalletStatus.ACTIVE && (
+                          {(wallet.status === WalletStatus.ACTIVE || wallet.status === 'active') && (
                             <Button
                               variant="warning"
                               size="sm"

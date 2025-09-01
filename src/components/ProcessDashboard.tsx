@@ -22,7 +22,7 @@ import {
   EmergencyRecoveryCard, 
   ActivityFeed 
 } from './monitoring';
-import { formatDate, formatNumber } from '../utils/formatters';
+import { formatDate, formatNumber, formatWalletBalance } from '../utils/formatters';
 import { 
   Play, 
   Square, 
@@ -637,7 +637,7 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-900 dark:text-gray-100">
-                        {wallet.nativeTokenBalance} SOL
+                        {formatWalletBalance(wallet.nativeTokenBalance || '0', wallet.chainId)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
