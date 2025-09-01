@@ -213,4 +213,68 @@ export class WalletService {
       throw error;
     }
   }
+
+  // Quick fund selected wallets using CLI-style endpoint
+  static async quickFundSelectedWallets(
+    walletIds: string[], 
+    amounts: number[], 
+    method: 'CEX' | 'STEALTH',
+    dryRun: boolean = false
+  ): Promise<{ success: boolean; message: string; jobId?: string }> {
+    try {
+      const response = await api.post('/api/selected-wallet-funding/quick-fund', {
+        walletIds,
+        amounts,
+        method,
+        dryRun
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error funding selected wallets:', error);
+      throw error;
+    }
+  }
+
+  // Create advanced funding plan with percentage mix
+  static async createAdvancedFundingPlan(
+    planName: string,
+    selectedWalletIds: string[],
+    fundingAmounts: number[],
+    cexFundingPercent: number,
+    useStealthTransfers: boolean,
+    masterWalletCapacity: { min: number; max: number }
+  ): Promise<{ success: boolean; data: { planId: string } }> {
+    try {
+      const response = await api.post('/api/selected-wallet-funding/plans', {
+        planName,
+        selectedWalletIds,
+        fundingAmounts,
+        cexFundingPercent,
+        useStealthTransfers,
+        masterWalletCapacity
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error creating advanced funding plan:', error);
+      throw error;
+    }
+  }
+
+  // Execute advanced funding plan
+  static async executeAdvancedFundingPlan(
+    planId: string,
+    fundingMethod: 'BOTH' | 'CEX' | 'STEALTH',
+    dryRun: boolean = false
+  ): Promise<{ success: boolean; message: string; jobId?: string }> {
+    try {
+      const response = await api.post(`/api/selected-wallet-funding/plans/${planId}/execute`, {
+        fundingMethod,
+        dryRun
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error executing advanced funding plan:', error);
+      throw error;
+    }
+  }
 }

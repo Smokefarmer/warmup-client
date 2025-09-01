@@ -37,8 +37,8 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
   ]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [enableDelays, setEnableDelays] = useState(true);
-  const [minDelay, setMinDelay] = useState(1000);
-  const [maxDelay, setMaxDelay] = useState(3000);
+  const [minDelayMinutes, setMinDelayMinutes] = useState(1); // Store in minutes for UI
+  const [maxDelayMinutes, setMaxDelayMinutes] = useState(3); // Store in minutes for UI
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Update distribution when total wallets change
@@ -116,8 +116,8 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
         walletTypeDistribution: distribution,
         withDelays: enableDelays,
         delayConfig: enableDelays ? {
-          minMs: minDelay,
-          maxMs: maxDelay
+          minMs: minDelayMinutes * 60 * 1000, // Convert minutes to milliseconds
+          maxMs: maxDelayMinutes * 60 * 1000  // Convert minutes to milliseconds
         } : undefined
       };
 
@@ -308,27 +308,35 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
                 <div className="grid grid-cols-2 gap-4 pl-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Min Delay (ms)
+                      Min Delay (minutes)
                     </label>
                     <input
                       type="number"
-                      min="100"
-                      value={minDelay}
-                      onChange={(e) => setMinDelay(parseInt(e.target.value) || 1000)}
+                      min="0.1"
+                      step="0.1"
+                      value={minDelayMinutes}
+                      onChange={(e) => setMinDelayMinutes(parseFloat(e.target.value) || 1)}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                     />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      = {(minDelayMinutes * 60 * 1000).toLocaleString()}ms
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Max Delay (ms)
+                      Max Delay (minutes)
                     </label>
                     <input
                       type="number"
-                      min="100"
-                      value={maxDelay}
-                      onChange={(e) => setMaxDelay(parseInt(e.target.value) || 3000)}
+                      min="0.1"
+                      step="0.1"
+                      value={maxDelayMinutes}
+                      onChange={(e) => setMaxDelayMinutes(parseFloat(e.target.value) || 3)}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                     />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      = {(maxDelayMinutes * 60 * 1000).toLocaleString()}ms
+                    </p>
                   </div>
                 </div>
               )}

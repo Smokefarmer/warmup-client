@@ -317,42 +317,7 @@ export const Processes: React.FC = () => {
         </div>
       </Card>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{filteredProcesses.length}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Total Processes</p>
-          </div>
-        </Card>
-        
-        <Card>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-success-600">
-              {filteredProcesses.filter(p => p.status === 'running').length}
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Running</p>
-          </div>
-        </Card>
-        
-        <Card>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-warning-600">
-              {filteredProcesses.filter(p => p.status === 'pending').length}
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Pending</p>
-          </div>
-        </Card>
-        
-        <Card>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-success-600">
-              {filteredProcesses.filter(p => p.status === 'completed').length}
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Completed</p>
-          </div>
-        </Card>
-      </div>
+
 
       {/* Create Process Modal */}
       <WarmupProcessModal
