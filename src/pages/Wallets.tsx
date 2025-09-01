@@ -15,7 +15,7 @@ import {
   useUpdateWalletType, 
   useArchiveWallet 
 } from '../hooks/useWallets';
-import { useUpdateTotalFundedForWallets, useUpdateTotalFundedForWallet } from '../hooks/useBalance';
+import { useForceUpdateAllBalances, useUpdateTotalFundedForWallet } from '../hooks/useBalance';
 import { useMultiChain } from '../hooks/useMultiChain';
 import { WalletStatus, WalletType } from '../types/wallet';
 import { formatAddress, formatDate, formatWalletBalance } from '../utils/formatters';
@@ -109,10 +109,8 @@ export const Wallets: React.FC = () => {
   // Handle force update all balances
   const handleForceUpdateAllBalances = async () => {
     try {
-      const result = await updateAllBalancesMutation.mutateAsync({
-        type: showArchived ? 'all' : 'active'
-      });
-      const updatedCount = result?.length || 0;
+      const result = await updateAllBalancesMutation.mutateAsync();
+      const updatedCount = result?.totalWalletsProcessed || 0;
       toast.success(`Successfully updated balances for ${updatedCount} wallets`);
       if (import.meta.env.DEV) {
         console.log('✅ Force updated all wallet balances:', result);
