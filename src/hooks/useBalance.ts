@@ -49,3 +49,18 @@ export const useUpdateTotalFundedForWallets = () => {
     },
   });
 };
+
+// Force update all wallet balances
+export const useForceUpdateAllBalances = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: () => BalanceService.forceUpdateAllBalances(),
+    onSuccess: () => {
+      // Invalidate all wallet data and balance summary to refresh the UI
+      queryClient.invalidateQueries({ queryKey: walletKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: walletKeys.details() });
+      queryClient.invalidateQueries({ queryKey: balanceKeys.summary() });
+    },
+  });
+};

@@ -53,7 +53,7 @@ export const Wallets: React.FC = () => {
   const updateStatusMutation = useUpdateWalletStatus();
   const updateTypeMutation = useUpdateWalletType();
   const archiveMutation = useArchiveWallet();
-  const updateAllBalancesMutation = useUpdateTotalFundedForWallets();
+  const updateAllBalancesMutation = useForceUpdateAllBalances();
   const updateSingleBalanceMutation = useUpdateTotalFundedForWallet();
 
   // Use the correct wallet data based on current view

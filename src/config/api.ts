@@ -40,6 +40,7 @@ export const API_ENDPOINTS = {
   BALANCE_SUMMARY: '/api/balance/summary',
   BALANCE_TOTAL_FUNDED_WALLET: (walletId: string) => `/api/balance/total-funded/wallet/${walletId}`,
   BALANCE_TOTAL_FUNDED_WALLETS: '/api/balance/total-funded/wallets',
+  BALANCE_FORCE_UPDATE_ALL: '/api/balance/force-update-all',
   
   // Statistics
   STATISTICS_MULTI_CHAIN: '/api/statistics/multi-chain',

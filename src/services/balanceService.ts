@@ -15,6 +15,14 @@ export interface UpdateTotalFundedRequest {
   fromBlock?: number;
 }
 
+export interface ForceUpdateAllBalancesResponse {
+  success: boolean;
+  message: string;
+  totalWalletsProcessed: number;
+  updatedWallets: UpdateTotalFundedResponse[];
+  errors?: string[];
+}
+
 export interface BalanceSummary {
   totalWallets: number;
   totalFunded: string;
@@ -61,6 +69,12 @@ export class BalanceService {
     if (status) params.append('status', status);
 
     const response = await api.get(`/api/wallets?${params.toString()}`);
+    return response.data;
+  }
+
+  // Force update all wallet balances
+  static async forceUpdateAllBalances(): Promise<ForceUpdateAllBalancesResponse> {
+    const response = await api.post('/api/balance/force-update-all');
     return response.data;
   }
 }
