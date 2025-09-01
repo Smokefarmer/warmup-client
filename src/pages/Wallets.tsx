@@ -451,7 +451,7 @@ export const Wallets: React.FC = () => {
                       </td>
                       <td>
                         <div className="flex items-center space-x-2">
-                          {(wallet.status === WalletStatus.ACTIVE || wallet.status === 'active') && (
+                          {wallet.status === WalletStatus.ACTIVE && (
                             <Button
                               variant="warning"
                               size="sm"

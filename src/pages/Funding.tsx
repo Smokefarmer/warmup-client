@@ -51,7 +51,7 @@ export const Funding: React.FC = () => {
   // Filter available wallets with all filters applied
   const availableWallets = wallets.filter(wallet => {
     // Base filter: exclude only archived wallets (handle both uppercase and lowercase)
-    const isArchived = wallet.status === WalletStatus.ARCHIVED || wallet.status === 'archived';
+    const isArchived = wallet.status === WalletStatus.ARCHIVED;
     if (isArchived) return false;
 
     // Search filter
