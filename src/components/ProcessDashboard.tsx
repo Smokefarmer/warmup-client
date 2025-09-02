@@ -12,15 +12,10 @@ import {
   useAddWalletsToProcess
 } from '../hooks/useWarmupProcesses';
 import { 
-  useSystemHealth, 
-  useProcessLiveMonitoring, 
   useConnectionStatus 
 } from '../hooks/useMonitoring';
 import { 
-  SystemStatusCard, 
-  MetricsDashboard, 
-  EmergencyRecoveryCard, 
-  ActivityFeed 
+  MonitoringDashboard 
 } from './monitoring';
 import { formatDate, formatNumber, formatWalletBalance } from '../utils/formatters';
 import { 
@@ -55,21 +50,13 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
   const [newWalletIds, setNewWalletIds] = useState('');
   const [monitoringInterval, setMonitoringInterval] = useState<NodeJS.Timeout | null>(null);
   const [showMonitoring, setShowMonitoring] = useState(true);
-  const [isLiveMonitoring, setIsLiveMonitoring] = useState(false);
 
   // Data hooks
   const { data: process, isLoading: processLoading, error: processError } = useWarmupProcess(processId);
   const { data: statistics, isLoading: statsLoading, refetch: refetchStats } = useWarmupProcessStatistics(processId);
   
-  // Monitoring hooks
-  const { data: systemHealth, isLoading: healthLoading, refetch: refetchHealth } = useSystemHealth(30000);
+  // Connection status
   const { isFullyConnected } = useConnectionStatus();
-  const { 
-    liveStats, 
-    isMonitoring: isProcessMonitoring, 
-    startLiveMonitoring, 
-    stopLiveMonitoring 
-  } = useProcessLiveMonitoring(processId, isLiveMonitoring);
   
   // Mutation hooks
   const startProcessMutation = useStartWarmupProcess();
@@ -150,7 +137,6 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
 
   const handleRefresh = () => {
     refetchStats();
-    refetchHealth();
     toast.success('Data refreshed');
   };
 
@@ -232,24 +218,6 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
             Refresh
           </Button>
 
-          {/* Live Monitoring Toggle */}
-          <Button
-            variant={isLiveMonitoring ? "primary" : "secondary"}
-            onClick={() => setIsLiveMonitoring(!isLiveMonitoring)}
-            disabled={!isFullyConnected}
-          >
-            <Monitor className="w-4 h-4 mr-2" />
-            {isLiveMonitoring ? 'Stop Live Feed' : 'Start Live Feed'}
-          </Button>
-
-          {/* Show/Hide Monitoring Dashboard */}
-          <Button
-            variant="secondary"
-            onClick={() => setShowMonitoring(!showMonitoring)}
-          >
-            {showMonitoring ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
-            {showMonitoring ? 'Hide Monitoring' : 'Show Monitoring'}
-          </Button>
           
           {(isPending || isStopped || isCompleted) && (
             <Button
@@ -323,12 +291,29 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
         <Card>
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Activity className="w-8 h-8 text-primary-600" />
+              <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                isActive 
+                  ? 'bg-green-100 dark:bg-green-900/20' 
+                  : process.status === 'completed'
+                  ? 'bg-blue-100 dark:bg-blue-900/20'
+                  : 'bg-gray-100 dark:bg-gray-800'
+              }`}>
+                <Activity className={`w-6 h-6 ${
+                  isActive 
+                    ? 'text-green-600' 
+                    : process.status === 'completed'
+                    ? 'text-blue-600'
+                    : 'text-gray-400'
+                }`} />
+              </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Process Status</p>
               <div className="flex items-center mt-1">
                 <StatusBadge status={process.status} />
+                {isActive && (
+                  <div className="ml-2 w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                )}
               </div>
             </div>
           </div>
@@ -337,12 +322,17 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
         <Card>
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Users className="w-8 h-8 text-blue-600" />
+              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                <Users className="w-6 h-6 text-blue-600" />
+              </div>
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Wallets</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <p className="text-2xl font-bold text-blue-600">
                 {process.walletIds?.length || 0}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {process.wallets ? `${process.wallets.length} loaded` : 'in queue'}
               </p>
             </div>
           </div>
@@ -351,12 +341,20 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
         <Card>
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <CheckCircle className="w-8 h-8 text-green-600" />
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                <CheckCircle className="w-6 h-6 text-green-600" />
+              </div>
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Completed</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <p className="text-2xl font-bold text-green-600">
                 {process.completedWallets || 0}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {process.walletIds?.length 
+                  ? `${((process.completedWallets || 0) / process.walletIds.length * 100).toFixed(1)}% done`
+                  : 'ready to start'
+                }
               </p>
             </div>
           </div>
@@ -365,240 +363,32 @@ export const ProcessDashboard: React.FC<ProcessDashboardProps> = ({
         <Card>
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Clock className="w-8 h-8 text-orange-600" />
+              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-purple-600" />
+              </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Created</p>
-              <p className="text-sm text-gray-900 dark:text-gray-100">
-                {formatDate(process.createdAt)}
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Performance</p>
+              <p className="text-2xl font-bold text-purple-600">
+                {statistics?.successRate ? `${(statistics.successRate * 100).toFixed(1)}%` : 'N/A'}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {statistics?.totalTransactions ? `${statistics.totalTransactions} txns` : 'no data'}
               </p>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* Statistics */}
-      {statistics && (
-        <Card title="Process Statistics" subtitle="Real-time process performance">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="text-center">
-              <div className="flex items-center justify-center w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg mx-auto mb-3">
-                <Users className="w-6 h-6 text-blue-600" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {statistics.activeWallets || 0}
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Active Wallets</p>
-            </div>
-
-            <div className="text-center">
-              <div className="flex items-center justify-center w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg mx-auto mb-3">
-                <TrendingUp className="w-6 h-6 text-green-600" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {statistics.totalTransactions || 0}
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Transactions</p>
-            </div>
-
-            <div className="text-center">
-              <div className="flex items-center justify-center w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg mx-auto mb-3">
-                <Activity className="w-6 h-6 text-purple-600" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {statistics.successRate ? `${(statistics.successRate * 100).toFixed(1)}%` : 'N/A'}
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Success Rate</p>
-            </div>
-
-            <div className="text-center">
-              <div className="flex items-center justify-center w-12 h-12 bg-orange-100 dark:bg-orange-900/20 rounded-lg mx-auto mb-3">
-                <Clock className="w-6 h-6 text-orange-600" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {statistics.averageTransactionTime ? `${statistics.averageTransactionTime.toFixed(1)}s` : 'N/A'}
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Avg Transaction Time</p>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          {process.walletIds && process.walletIds.length > 0 && (
-            <div className="mt-6">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Progress</span>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {process.completedWallets || 0} / {process.walletIds.length}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div
-                  className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${process.walletIds.length > 0 ? ((process.completedWallets || 0) / process.walletIds.length) * 100 : 0}%`
-                  }}
-                />
-              </div>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {/* Process Details */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Configuration */}
-        <Card title="Configuration" subtitle="Process settings and parameters">
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Max Concurrent Wallets</p>
-                <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {process.configuration?.maxConcurrentWallets || 'Default'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</p>
-                <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  <StatusBadge status={process.status} />
-                </p>
-              </div>
-            </div>
-            
-            {process.progress && (
-              <div className="border-t pt-4">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Progress Details</h4>
-                <div className="space-y-2">
-                  {process.progress.startTime && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">Started:</span>
-                      <span className="text-sm text-gray-900 dark:text-gray-100">
-                        {formatDate(process.progress.startTime)}
-                      </span>
-                    </div>
-                  )}
-                  {process.progress.estimatedCompletion && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">Estimated Completion:</span>
-                      <span className="text-sm text-gray-900 dark:text-gray-100">
-                        {formatDate(process.progress.estimatedCompletion)}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Current Wallet Index:</span>
-                    <span className="text-sm text-gray-900 dark:text-gray-100">
-                      {process.progress.currentWalletIndex || 0}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* Timeline */}
-        <Card title="Timeline" subtitle="Process events and milestones">
-          <div className="space-y-4">
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0">
-                <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Process Created</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {formatDate(process.createdAt)}
-                </p>
-              </div>
-            </div>
-
-            {process.startedAt && (
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Process Started</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {formatDate(process.startedAt)}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {process.completedAt && (
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Process Completed</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {formatDate(process.completedAt)}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0">
-                <div className="w-2 h-2 bg-gray-400 rounded-full mt-2"></div>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Last Updated</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {formatDate(process.updatedAt)}
-                </p>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
 
       {/* Monitoring Dashboard */}
-      {showMonitoring && systemHealth && (
-        <div className="monitoring-section space-y-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <Monitor className="w-6 h-6 text-blue-500" />
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              Live Monitoring Dashboard
-            </h2>
-            {isLiveMonitoring && (
-              <div className="flex items-center space-x-1 px-2 py-1 bg-green-100 dark:bg-green-900/20 rounded">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-xs text-green-700 dark:text-green-400 font-medium">LIVE</span>
-              </div>
-            )}
-          </div>
-
-          {/* Monitoring Dashboard Grid */}
-          <div className="dashboard-grid grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* System Status */}
-            <SystemStatusCard 
-              health={systemHealth} 
-              lastUpdate={new Date()}
-              isConnected={isFullyConnected}
-            />
-            
-            {/* Emergency Recovery */}
-            <EmergencyRecoveryCard 
-              emergencyRecovery={systemHealth.emergencyRecovery}
-              recentActivity={systemHealth.recentActivity}
-            />
-          </div>
-
-          {/* Metrics Dashboard */}
-          <MetricsDashboard health={systemHealth} />
-
-          {/* Activity Feed */}
-          <ActivityFeed 
-            recentActivity={systemHealth.recentActivity}
-            isLive={isLiveMonitoring}
-            onRefresh={() => {
-              refetchHealth();
-              refetchStats();
-            }}
-          />
-        </div>
+      {showMonitoring && (
+        <MonitoringDashboard
+          processId={processId}
+          processName={process.name}
+          isVisible={showMonitoring}
+          onToggleVisibility={() => setShowMonitoring(false)}
+        />
       )}
 
       {/* Wallet List */}

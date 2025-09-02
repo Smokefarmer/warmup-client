@@ -1,5 +1,5 @@
 // API configuration matching the backend guide
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://warmup-server-development.up.railway.app';
 
 export const headers = {
   'Content-Type': 'application/json',
@@ -45,6 +45,12 @@ export const API_ENDPOINTS = {
   // Statistics
   STATISTICS_MULTI_CHAIN: '/api/statistics/multi-chain',
   WALLETS_STATISTICS: '/api/wallets/statistics',
+  
+  // Monitoring Dashboard
+  MONITOR_HEALTH: '/api/monitor/health',
+  MONITOR_PROCESSES_QUICK: '/api/monitor/processes/quick',
+  WARMUP_QUEUE: (processId: string) => `/api/warmup/${processId}/queue`,
+  WARMUP_QUEUE_LIVE: (processId: string) => `/api/warmup/${processId}/queue/live`,
 };
 
 // Helper function to build full API URLs
