@@ -5,7 +5,7 @@ import { Button } from '../components/common/Button';
 import { MultiChainFunderStatusCard } from '../components/MultiChainFunderStatusCard';
 import { VirtualWalletList } from '../components/VirtualWalletList';
 import { useFunderStatus } from '../hooks/useFunding';
-import { useWallets } from '../hooks/useWallets';
+import { useWallets, useSellAllTokens, useSendBackToFunder } from '../hooks/useWallets';
 import { useMultiChain } from '../hooks/useMultiChain';
 import { WalletService } from '../services/walletService';
 import { WalletStatus, WalletType } from '../types/wallet';
@@ -19,13 +19,20 @@ import {
   Shield, 
   Search,
   Filter,
-  Network
+  Network,
+  Trash2,
+  ArrowLeftRight,
+  Loader2
 } from 'lucide-react';
 
 export const Funding: React.FC = () => {
   const { data: funderStatus, refetch: refetchFunder } = useFunderStatus();
   const { data: wallets = [], isLoading: walletsLoading, refetch: refetchWallets } = useWallets();
   const { getChainName, supportedChains } = useMultiChain();
+  
+  // Bulk cleanup hooks
+  const sellAllMutation = useSellAllTokens();
+  const sendBackMutation = useSendBackToFunder();
 
   // Wallet selection states
   const [selectedWallets, setSelectedWallets] = useState<Set<string>>(new Set());
@@ -47,6 +54,15 @@ export const Funding: React.FC = () => {
   const [cexPercent, setCexPercent] = useState(30); // 30% CEX, 70% Stealth
   const [useStealthTransfers, setUseStealthTransfers] = useState(true);
   const [isFunding, setIsFunding] = useState(false);
+  
+  // Bulk cleanup states
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [cleanupProgress, setCleanupProgress] = useState<{
+    current: number;
+    total: number;
+    currentWallet?: string;
+    status?: string;
+  }>({ current: 0, total: 0 });
 
   // Filter available wallets with all filters applied
   const availableWallets = wallets.filter(wallet => {
@@ -226,6 +242,214 @@ export const Funding: React.FC = () => {
     }
   };
 
+  // Bulk cleanup functions
+  const handleBulkSellAllTokens = async () => {
+    if (selectedWallets.size === 0) {
+      toast.error('Please select at least one wallet');
+      return;
+    }
+
+    const solanaWallets = Array.from(selectedWallets)
+      .map(id => availableWallets.find(w => w._id === id))
+      .filter(w => w && w.chainId === 101); // Only Solana wallets
+
+    if (solanaWallets.length === 0) {
+      toast.error('No Solana wallets selected. Sell all tokens is currently only supported for Solana wallets.');
+      return;
+    }
+
+    setIsCleaningUp(true);
+    setCleanupProgress({ current: 0, total: solanaWallets.length, status: 'Selling tokens...' });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < solanaWallets.length; i++) {
+      const wallet = solanaWallets[i];
+      setCleanupProgress({ 
+        current: i + 1, 
+        total: solanaWallets.length, 
+        currentWallet: formatAddress(wallet.publicKey || wallet.address),
+        status: 'Selling tokens...'
+      });
+
+      try {
+        await sellAllMutation.mutateAsync(wallet._id);
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to sell tokens for wallet ${wallet._id}:`, error);
+        failCount++;
+      }
+
+      // Small delay between wallets
+      if (i < solanaWallets.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    setIsCleaningUp(false);
+    setCleanupProgress({ current: 0, total: 0 });
+
+    if (successCount > 0) {
+      toast.success(`Successfully sold tokens from ${successCount} wallet${successCount !== 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to sell tokens from ${failCount} wallet${failCount !== 1 ? 's' : ''}`);
+    }
+
+    refetchWallets();
+  };
+
+  const handleBulkSendBackToFunder = async () => {
+    if (selectedWallets.size === 0) {
+      toast.error('Please select at least one wallet');
+      return;
+    }
+
+    if (!funderStatus?.funderAddress) {
+      toast.error('No funder address available');
+      return;
+    }
+
+    const solanaWallets = Array.from(selectedWallets)
+      .map(id => availableWallets.find(w => w._id === id))
+      .filter(w => w && w.chainId === 101); // Only Solana wallets
+
+    if (solanaWallets.length === 0) {
+      toast.error('No Solana wallets selected. Send back to funder is currently only supported for Solana wallets.');
+      return;
+    }
+
+    setIsCleaningUp(true);
+    setCleanupProgress({ current: 0, total: solanaWallets.length, status: 'Sending back to funder...' });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < solanaWallets.length; i++) {
+      const wallet = solanaWallets[i];
+      setCleanupProgress({ 
+        current: i + 1, 
+        total: solanaWallets.length, 
+        currentWallet: formatAddress(wallet.publicKey || wallet.address),
+        status: 'Sending back to funder...'
+      });
+
+      try {
+        await sendBackMutation.mutateAsync({
+          walletId: wallet._id,
+          funderAddress: funderStatus.funderAddress
+        });
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to send back to funder for wallet ${wallet._id}:`, error);
+        failCount++;
+      }
+
+      // Small delay between wallets
+      if (i < solanaWallets.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    setIsCleaningUp(false);
+    setCleanupProgress({ current: 0, total: 0 });
+
+    if (successCount > 0) {
+      toast.success(`Successfully sent back SOL from ${successCount} wallet${successCount !== 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to send back SOL from ${failCount} wallet${failCount !== 1 ? 's' : ''}`);
+    }
+
+    refetchWallets();
+  };
+
+  const handleBulkCleanup = async () => {
+    if (selectedWallets.size === 0) {
+      toast.error('Please select at least one wallet');
+      return;
+    }
+
+    const solanaWallets = Array.from(selectedWallets)
+      .map(id => availableWallets.find(w => w._id === id))
+      .filter(w => w && w.chainId === 101); // Only Solana wallets
+
+    if (solanaWallets.length === 0) {
+      toast.error('No Solana wallets selected. Wallet cleanup is currently only supported for Solana wallets.');
+      return;
+    }
+
+    if (!funderStatus?.funderAddress) {
+      toast.error('No funder address available');
+      return;
+    }
+
+    setIsCleaningUp(true);
+    setCleanupProgress({ current: 0, total: solanaWallets.length * 2, status: 'Starting cleanup...' });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < solanaWallets.length; i++) {
+      const wallet = solanaWallets[i];
+      
+      // Step 1: Sell all tokens
+      setCleanupProgress({ 
+        current: i * 2 + 1, 
+        total: solanaWallets.length * 2, 
+        currentWallet: formatAddress(wallet.publicKey || wallet.address),
+        status: 'Selling tokens...'
+      });
+
+      try {
+        await sellAllMutation.mutateAsync(wallet._id);
+      } catch (error) {
+        console.error(`Failed to sell tokens for wallet ${wallet._id}:`, error);
+        failCount++;
+      }
+
+      // Small delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Step 2: Send back to funder
+      setCleanupProgress({ 
+        current: i * 2 + 2, 
+        total: solanaWallets.length * 2, 
+        currentWallet: formatAddress(wallet.publicKey || wallet.address),
+        status: 'Sending back to funder...'
+      });
+
+      try {
+        await sendBackMutation.mutateAsync({
+          walletId: wallet._id,
+          funderAddress: funderStatus.funderAddress
+        });
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to send back to funder for wallet ${wallet._id}:`, error);
+        failCount++;
+      }
+
+      // Small delay between wallets
+      if (i < solanaWallets.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    setIsCleaningUp(false);
+    setCleanupProgress({ current: 0, total: 0 });
+
+    if (successCount > 0) {
+      toast.success(`Successfully cleaned up ${successCount} wallet${successCount !== 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to cleanup ${failCount} wallet${failCount !== 1 ? 's' : ''}`);
+    }
+
+    refetchWallets();
+  };
+
   const selectAll = selectedWallets.size === availableWallets.length && availableWallets.length > 0;
   const indeterminate = selectedWallets.size > 0 && selectedWallets.size < availableWallets.length;
 
@@ -248,6 +472,89 @@ export const Funding: React.FC = () => {
 
       {/* Funder Status Card */}
       <MultiChainFunderStatusCard onRefresh={refetchFunder} />
+
+      {/* Bulk Cleanup Actions */}
+      {selectedWallets.size > 0 && (
+        <Card className="p-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
+                <Trash2 className="w-5 h-5 mr-2" />
+                Bulk Wallet Cleanup ({selectedWallets.size} selected)
+              </h3>
+            </div>
+            
+            {/* Progress indicator */}
+            {isCleaningUp && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        {cleanupProgress.status}
+                      </span>
+                      <span className="text-sm text-blue-700 dark:text-blue-300">
+                        {cleanupProgress.current} / {cleanupProgress.total}
+                      </span>
+                    </div>
+                    {cleanupProgress.currentWallet && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400">
+                        Current: {cleanupProgress.currentWallet}
+                      </p>
+                    )}
+                    <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2 mt-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(cleanupProgress.current / cleanupProgress.total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-3">
+              <Button
+                variant="secondary"
+                onClick={handleBulkSellAllTokens}
+                disabled={isCleaningUp || isFunding}
+                className="flex items-center"
+              >
+                <ArrowLeftRight className="w-4 h-4 mr-2" />
+                Sell All Tokens
+              </Button>
+              
+              <Button
+                variant="secondary"
+                onClick={handleBulkSendBackToFunder}
+                disabled={isCleaningUp || isFunding || !funderStatus?.funderAddress}
+                className="flex items-center"
+              >
+                <Target className="w-4 h-4 mr-2" />
+                Send Back to Funder
+              </Button>
+              
+              <Button
+                variant="destructive"
+                onClick={handleBulkCleanup}
+                disabled={isCleaningUp || isFunding || !funderStatus?.funderAddress}
+                className="flex items-center"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Full Cleanup (Sell + Send)
+              </Button>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                ℹ️ Cleanup actions are only supported for Solana wallets. 
+                {Array.from(selectedWallets).map(id => availableWallets.find(w => w._id === id)).filter(w => w && w.chainId === 101).length} of {selectedWallets.size} selected wallets are Solana wallets.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Wallet Filters */}
       <Card className="p-6">
