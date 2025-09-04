@@ -200,3 +200,94 @@ export const useSendBackToFunder = () => {
     },
   });
 };
+
+// ============ TOKEN MANAGEMENT HOOKS ============
+
+// Get wallets with token information
+export const useWalletsWithTokenInfo = (type?: string) => {
+  return useQuery({
+    queryKey: ['wallets-with-token-info', type],
+    queryFn: () => WalletService.getWalletsWithTokenInfo(type),
+    staleTime: 30000, // 30 seconds
+    retry: false, // Don't retry if endpoint doesn't exist yet
+  });
+};
+
+// Get single wallet with token information
+export const useWalletWithTokenInfo = (walletId: string) => {
+  return useQuery({
+    queryKey: ['wallet-with-token-info', walletId],
+    queryFn: () => WalletService.getWalletWithTokenInfo(walletId),
+    enabled: !!walletId,
+    staleTime: 30000,
+  });
+};
+
+// Get wallet token limits
+export const useWalletTokenLimits = (walletId: string) => {
+  return useQuery({
+    queryKey: ['wallet-token-limits', walletId],
+    queryFn: () => WalletService.getWalletTokenLimits(walletId),
+    enabled: !!walletId,
+    staleTime: 30000,
+  });
+};
+
+// Get wallet token holdings
+export const useWalletTokenHoldings = (walletId: string) => {
+  return useQuery({
+    queryKey: ['wallet-token-holdings', walletId],
+    queryFn: () => WalletService.getWalletTokenHoldings(walletId),
+    enabled: !!walletId,
+    staleTime: 30000,
+  });
+};
+
+// Get system token statistics
+export const useTokenStatistics = () => {
+  return useQuery({
+    queryKey: ['token-statistics'],
+    queryFn: () => WalletService.getTokenStatistics(),
+    staleTime: 60000, // 1 minute
+    retry: false, // Don't retry if endpoint doesn't exist yet
+    enabled: true, // Keep enabled but handle errors gracefully
+  });
+};
+
+// Get token conflict statistics by type
+export const useTokenConflictStats = (walletType: string) => {
+  return useQuery({
+    queryKey: ['token-conflict-stats', walletType],
+    queryFn: () => WalletService.getTokenConflictStats(walletType),
+    enabled: !!walletType,
+    staleTime: 60000,
+  });
+};
+
+// Refresh wallet token count
+export const useRefreshTokenCount = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (walletId: string) => WalletService.refreshTokenCount(walletId),
+    onSuccess: (data, walletId) => {
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets-with-token-info'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-with-token-info', walletId] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-token-limits', walletId] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-token-holdings', walletId] });
+      queryClient.invalidateQueries({ queryKey: ['token-statistics'] });
+      
+      if (data.refreshed) {
+        toast.success(`Token count updated: ${data.update.previousCount} → ${data.update.newCount}`);
+      } else {
+        toast.info('Token count is up to date');
+      }
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || 'Failed to refresh token count';
+      toast.error(`Failed to refresh token count: ${message}`);
+    },
+  });
+};

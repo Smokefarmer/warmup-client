@@ -43,6 +43,23 @@ export interface ChainConfig {
   isTestnet: boolean;
 }
 
+export interface TokenHolding {
+  tokenAddress: string;
+  balance: string;
+  balanceFormatted?: string;
+}
+
+export interface TokenInfo {
+  maxTokens: number;
+  currentTokenCount: number;
+  sellProbability: number;
+  canBuy: boolean;
+  shouldForceSell: boolean;
+  reason: string;
+  holdings?: TokenHolding[];
+  error?: string;
+}
+
 export interface IWallet {
   _id: string;
   address: string;
@@ -57,6 +74,7 @@ export interface IWallet {
   createdAt: string;
   updatedAt: string;
   archivedAt?: string;
+  tokenInfo?: TokenInfo;
   solanaAccountInfo?: {
     lamports: number;
     owner: string;
@@ -109,4 +127,67 @@ export interface CreateMultiChainWalletDto {
       privateKey?: string;
     };
   };
+}
+
+// Token management types
+export interface TokenLimits {
+  walletId: string;
+  publicKey: string;
+  type: string;
+  tag?: string;
+  maxTokens: number;
+  currentTokenCount: number;
+  sellProbabilityBase: number;
+  sellProbabilityCurrent: number;
+  canBuy: boolean;
+  shouldForceSell: boolean;
+  reason: string;
+  lastUpdate: string;
+}
+
+export interface TokenHoldings {
+  walletId: string;
+  publicKey: string;
+  type: string;
+  tag?: string;
+  holdingsCount: number;
+  holdings: TokenHolding[];
+  lastScanned: string;
+}
+
+export interface TokenStatistics {
+  totalWallets: number;
+  averageMaxTokens: number;
+  averageCurrentTokens: number;
+  walletsAtLimit: number;
+  walletsNearLimit: number;
+  averageSellProbability: number;
+  generatedAt: string;
+  description: string;
+}
+
+export interface TokenConflictStats {
+  walletType: string;
+  chainId: number;
+  totalWallets: number;
+  walletsWithTokens: number;
+  uniqueTokens: number;
+  averageTokensPerWallet: number;
+  tokenConflictRate: number;
+  conflictRatePercentage: number;
+  generatedAt: string;
+}
+
+export interface RefreshTokenCountResult {
+  walletId: string;
+  publicKey: string;
+  refreshed: boolean;
+  update: {
+    walletId: string;
+    previousCount: number;
+    newCount: number;
+    maxTokens: number;
+    sellProbabilityChange: number;
+  };
+  timestamp: string;
 }

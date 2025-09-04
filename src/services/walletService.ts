@@ -277,4 +277,89 @@ export class WalletService {
       throw error;
     }
   }
+
+  // ============ TOKEN MANAGEMENT METHODS ============
+
+  // Get wallets with token information
+  static async getWalletsWithTokenInfo(type?: string): Promise<IWallet[]> {
+    try {
+      const params = new URLSearchParams();
+      params.append('includeTokenInfo', 'true');
+      if (type) {
+        params.append('type', type);
+      }
+      
+      const response = await api.get(`/api/wallets?${params.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching wallets with token info:', error);
+      throw error;
+    }
+  }
+
+  // Get single wallet with token information
+  static async getWalletWithTokenInfo(walletId: string): Promise<IWallet> {
+    try {
+      const response = await api.get(`/api/wallets/${walletId}?includeTokenInfo=true`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching wallet with token info:', error);
+      throw error;
+    }
+  }
+
+  // Get wallet token limits
+  static async getWalletTokenLimits(walletId: string) {
+    try {
+      const response = await api.get(`/api/wallets/${walletId}/token-limits`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching wallet token limits:', error);
+      throw error;
+    }
+  }
+
+  // Get wallet token holdings
+  static async getWalletTokenHoldings(walletId: string) {
+    try {
+      const response = await api.get(`/api/wallets/${walletId}/token-holdings`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching wallet token holdings:', error);
+      throw error;
+    }
+  }
+
+  // Get system token statistics
+  static async getTokenStatistics() {
+    try {
+      const response = await api.get('/api/wallets/system/token-statistics');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching token statistics:', error);
+      throw error;
+    }
+  }
+
+  // Get token conflict statistics by type
+  static async getTokenConflictStats(walletType: string) {
+    try {
+      const response = await api.get(`/api/wallets/system/token-conflicts/${walletType}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching token conflict stats:', error);
+      throw error;
+    }
+  }
+
+  // Refresh wallet token count
+  static async refreshTokenCount(walletId: string) {
+    try {
+      const response = await api.post(`/api/wallets/${walletId}/refresh-token-count`);
+      return response.data;
+    } catch (error) {
+      console.error('Error refreshing token count:', error);
+      throw error;
+    }
+  }
 }

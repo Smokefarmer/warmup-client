@@ -473,6 +473,7 @@ export const Funding: React.FC = () => {
       {/* Funder Status Card */}
       <MultiChainFunderStatusCard onRefresh={refetchFunder} />
 
+
       {/* Bulk Cleanup Actions */}
       {selectedWallets.size > 0 && (
         <Card className="p-6">
@@ -546,14 +547,14 @@ export const Funding: React.FC = () => {
               </Button>
             </div>
 
-            <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-              <p className="text-xs text-gray-600 dark:text-gray-400">
-                ℹ️ Cleanup actions are only supported for Solana wallets. 
-                {Array.from(selectedWallets).map(id => availableWallets.find(w => w._id === id)).filter(w => w && w.chainId === 101).length} of {selectedWallets.size} selected wallets are Solana wallets.
-              </p>
-            </div>
+          <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              ℹ️ Cleanup actions are only supported for Solana wallets. 
+              {Array.from(selectedWallets).map(id => availableWallets.find(w => w._id === id)).filter(w => w && w.chainId === 101).length} of {selectedWallets.size} selected wallets are Solana wallets.
+            </p>
           </div>
-        </Card>
+        </div>
+      </Card>
       )}
 
       {/* Wallet Filters */}
