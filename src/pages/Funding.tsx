@@ -4,12 +4,14 @@ import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { MultiChainFunderStatusCard } from '../components/MultiChainFunderStatusCard';
 import { VirtualWalletList } from '../components/VirtualWalletList';
-import { useFunderStatus } from '../hooks/useFunding';
+import { useFunderStatus, useFunderInfoAll } from '../hooks/useFunding';
 import { useWallets, useSellAllTokens, useSendBackToFunder } from '../hooks/useWallets';
 import { useMultiChain } from '../hooks/useMultiChain';
 import { WalletService } from '../services/walletService';
 import { WalletStatus, WalletType } from '../types/wallet';
 import { formatAddress, formatWalletBalance } from '../utils/formatters';
+import { isValidSolanaAddress, convertHexToBase58 } from '../utils/validators';
+import { findSolanaAddressForEthereum } from '../utils/addressMapping';
 import { 
   RefreshCw, 
   Wallet, 
@@ -22,11 +24,13 @@ import {
   Network,
   Trash2,
   ArrowLeftRight,
-  Loader2
+  Loader2,
+  Tag
 } from 'lucide-react';
 
 export const Funding: React.FC = () => {
   const { data: funderStatus, refetch: refetchFunder } = useFunderStatus();
+  const { data: funderInfoAll } = useFunderInfoAll();
   const { data: wallets = [], isLoading: walletsLoading, refetch: refetchWallets } = useWallets();
   const { getChainName, supportedChains } = useMultiChain();
   
@@ -63,6 +67,93 @@ export const Funding: React.FC = () => {
     currentWallet?: string;
     status?: string;
   }>({ current: 0, total: 0 });
+
+  // Get the correct Solana funder address (same logic as WalletManagementActions)
+  const getSolanaFunderAddress = (): string | null => {
+    console.log('🔍 Debug funder address resolution:', {
+      funderInfoAll,
+      funderStatus,
+      hasFunderInfoAll: !!funderInfoAll,
+      hasFunderStatus: !!funderStatus,
+      funderInfoAllKeys: funderInfoAll ? Object.keys(funderInfoAll) : 'none',
+      funderStatusAddress: funderStatus?.funderAddress
+    });
+
+    // For Solana wallets, we MUST get a Solana funder address (base58)
+    // First try from funderInfoAll for Solana chain (101)
+    if (funderInfoAll?.funderInfo?.['101']?.funderAddress) {
+      const solanaFunder = funderInfoAll.funderInfo['101'].funderAddress;
+      console.log('✅ Found Solana funder address from funderInfoAll:', solanaFunder);
+      return solanaFunder;
+    }
+    
+    // Try other Solana chains (devnet/testnet)
+    const solanaChains = ['102', '103']; // devnet, testnet
+    for (const chainId of solanaChains) {
+      if (funderInfoAll?.funderInfo?.[chainId]?.funderAddress) {
+        const solanaFunder = funderInfoAll.funderInfo[chainId].funderAddress;
+        console.log(`✅ Found Solana funder address on chain ${chainId}:`, solanaFunder);
+        return solanaFunder;
+      }
+    }
+    
+    // Last resort: try from funderStatus but we'll need to convert it
+    if (funderStatus?.funderAddress) {
+      const address = funderStatus.funderAddress;
+      console.log('⚠️ Using funderStatus address (might need conversion):', address);
+      return address; // Return it even if hex, we'll convert it in the next step
+    }
+    
+    console.log('❌ No funder address found');
+    return null;
+  };
+
+  // Validate and convert funder address if needed
+  const getValidatedFunderAddress = (): string | null => {
+    const rawAddress = getSolanaFunderAddress();
+    if (!rawAddress) {
+      console.log('❌ No raw address to validate');
+      return null;
+    }
+
+    console.log('🔄 Validating address:', rawAddress);
+
+    // Check if it's already a valid Solana address
+    if (isValidSolanaAddress(rawAddress)) {
+      console.log('✅ Address is already valid base58:', rawAddress);
+      return rawAddress;
+    }
+
+    console.log('⚠️ Address is not valid base58, attempting conversion...');
+
+    // Handle Ethereum to Solana address mapping
+    if (rawAddress.startsWith('0x')) {
+      const solanaAddress = findSolanaAddressForEthereum(rawAddress);
+      if (solanaAddress) {
+        console.log('🔧 Using mapped Solana address for Ethereum address:', {
+          ethereum: rawAddress,
+          solana: solanaAddress
+        });
+        
+        // Show a toast to inform the user about the address conversion
+        toast.success(`Using Solana funder address: ${solanaAddress.slice(0, 8)}...${solanaAddress.slice(-8)}`);
+        
+        return solanaAddress;
+      } else {
+        console.warn('⚠️ No Solana mapping found for Ethereum address:', rawAddress);
+      }
+    }
+
+    // Try to convert from hex if needed
+    const convertedAddress = convertHexToBase58(rawAddress);
+    if (convertedAddress && isValidSolanaAddress(convertedAddress)) {
+      console.log('✅ Converted funder address from hex to base58:', convertedAddress);
+      return convertedAddress;
+    }
+
+    console.error('❌ Could not get valid Solana funder address:', rawAddress);
+    return null;
+  };
 
   // Filter available wallets with all filters applied
   const availableWallets = wallets.filter(wallet => {
@@ -266,6 +357,12 @@ export const Funding: React.FC = () => {
 
     for (let i = 0; i < solanaWallets.length; i++) {
       const wallet = solanaWallets[i];
+      if (!wallet) {
+        console.error('Wallet is undefined at index:', i);
+        failCount++;
+        continue;
+      }
+
       setCleanupProgress({ 
         current: i + 1, 
         total: solanaWallets.length, 
@@ -306,8 +403,9 @@ export const Funding: React.FC = () => {
       return;
     }
 
-    if (!funderStatus?.funderAddress) {
-      toast.error('No funder address available');
+    const validatedFunderAddress = getValidatedFunderAddress();
+    if (!validatedFunderAddress) {
+      toast.error('No valid Solana funder address available');
       return;
     }
 
@@ -328,6 +426,12 @@ export const Funding: React.FC = () => {
 
     for (let i = 0; i < solanaWallets.length; i++) {
       const wallet = solanaWallets[i];
+      if (!wallet) {
+        console.error('Wallet is undefined at index:', i);
+        failCount++;
+        continue;
+      }
+
       setCleanupProgress({ 
         current: i + 1, 
         total: solanaWallets.length, 
@@ -338,7 +442,7 @@ export const Funding: React.FC = () => {
       try {
         await sendBackMutation.mutateAsync({
           walletId: wallet._id,
-          funderAddress: funderStatus.funderAddress
+          funderAddress: validatedFunderAddress
         });
         successCount++;
       } catch (error) {
@@ -380,8 +484,9 @@ export const Funding: React.FC = () => {
       return;
     }
 
-    if (!funderStatus?.funderAddress) {
-      toast.error('No funder address available');
+    const validatedFunderAddress = getValidatedFunderAddress();
+    if (!validatedFunderAddress) {
+      toast.error('No valid Solana funder address available');
       return;
     }
 
@@ -393,6 +498,11 @@ export const Funding: React.FC = () => {
 
     for (let i = 0; i < solanaWallets.length; i++) {
       const wallet = solanaWallets[i];
+      if (!wallet) {
+        console.error('Wallet is undefined at index:', i);
+        failCount++;
+        continue;
+      }
       
       // Step 1: Sell all tokens
       setCleanupProgress({ 
@@ -423,7 +533,7 @@ export const Funding: React.FC = () => {
       try {
         await sendBackMutation.mutateAsync({
           walletId: wallet._id,
-          funderAddress: funderStatus.funderAddress
+          funderAddress: validatedFunderAddress
         });
         successCount++;
       } catch (error) {
@@ -529,7 +639,7 @@ export const Funding: React.FC = () => {
               <Button
                 variant="secondary"
                 onClick={handleBulkSendBackToFunder}
-                disabled={isCleaningUp || isFunding || !funderStatus?.funderAddress}
+                disabled={isCleaningUp || isFunding || !getValidatedFunderAddress()}
                 className="flex items-center"
               >
                 <Target className="w-4 h-4 mr-2" />
@@ -537,9 +647,9 @@ export const Funding: React.FC = () => {
               </Button>
               
               <Button
-                variant="destructive"
+                variant="danger"
                 onClick={handleBulkCleanup}
-                disabled={isCleaningUp || isFunding || !funderStatus?.funderAddress}
+                disabled={isCleaningUp || isFunding || !getValidatedFunderAddress()}
                 className="flex items-center"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
@@ -751,6 +861,17 @@ export const Funding: React.FC = () => {
                             <Network className="w-3 h-3 mr-1" />
                             {getChainName(wallet.chainId)}
                           </span>
+                          {wallet.tag && (
+                            <>
+                              <span>•</span>
+                              <div className="flex items-center">
+                                <Tag className="w-3 h-3 text-blue-500 mr-1" />
+                                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                                  {wallet.tag}
+                                </span>
+                              </div>
+                            </>
+                          )}
                           <span>•</span>
                           <span className={`font-medium ${
                             parseFloat(wallet.nativeTokenBalance || '0') === 0 

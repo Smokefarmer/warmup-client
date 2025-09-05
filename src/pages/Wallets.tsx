@@ -16,7 +16,9 @@ import {
   useArchiveWallet,
   useWalletsWithTokenInfo,
   useRefreshTokenCount,
-  useTokenStatistics
+  useTokenStatistics,
+  useUpdateWalletTag,
+  useRemoveWalletTag
 } from '../hooks/useWallets';
 import { useForceUpdateAllBalances, useUpdateTotalFundedForWallet } from '../hooks/useBalance';
 import { useMultiChain } from '../hooks/useMultiChain';
@@ -38,7 +40,10 @@ import {
   History,
   RefreshCw,
   BarChart3,
-  Coins
+  Coins,
+  Tag,
+  Tags,
+  X
 } from 'lucide-react';
 
 // Import token components
@@ -81,11 +86,21 @@ export const Wallets: React.FC = () => {
   const { data: tokenStatistics, error: tokenStatsError } = useTokenStatistics();
   const refreshTokenCountMutation = useRefreshTokenCount();
   
+  // Tag management hooks
+  const updateTagMutation = useUpdateWalletTag();
+  const removeTagMutation = useRemoveWalletTag();
+  
+  // Wallet selection for bulk operations
+  const [selectedWallets, setSelectedWallets] = useState<Set<string>>(new Set());
+  const [bulkTagValue, setBulkTagValue] = useState('');
+  const [showBulkTagModal, setShowBulkTagModal] = useState(false);
+  
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedChain, setSelectedChain] = useState('');
+  const [selectedTag, setSelectedTag] = useState('');
 
   const updateStatusMutation = useUpdateWalletStatus();
   const updateTypeMutation = useUpdateWalletType();
@@ -98,19 +113,29 @@ export const Wallets: React.FC = () => {
   const isLoading = showArchived ? archivedLoading : activeLoading;
   const refetch = showArchived ? refetchArchived : refetchActive;
 
+  // Get unique tags for filter dropdown
+  const uniqueTags = Array.from(new Set(
+    wallets
+      .filter(wallet => wallet.tag && wallet.tag.trim())
+      .map(wallet => wallet.tag!)
+  )).sort();
+
   // Filter wallets based on search term and filters (no need to filter by archived status anymore)
   const filteredWallets = wallets.filter(wallet => {
     const matchesSearch = !searchTerm || 
       (wallet.publicKey || wallet.address).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      wallet.type.toLowerCase().includes(searchTerm.toLowerCase());
+      wallet.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (wallet.tag && wallet.tag.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesType = !selectedType || wallet.type === selectedType;
     const matchesStatus = !selectedStatus || 
       wallet.status === selectedStatus || 
       wallet.status.toLowerCase() === selectedStatus.toLowerCase();
     const matchesChain = !selectedChain || wallet.chainId === parseInt(selectedChain);
+    const matchesTag = !selectedTag || 
+      (selectedTag === 'no-tag' ? !wallet.tag : wallet.tag === selectedTag);
     
-    return matchesSearch && matchesType && matchesStatus && matchesChain;
+    return matchesSearch && matchesType && matchesStatus && matchesChain && matchesTag;
   });
 
   // Debug logging to see what wallet data we have
@@ -176,7 +201,96 @@ export const Wallets: React.FC = () => {
     }
   };
 
+  // Wallet selection handlers
+  const handleWalletSelection = (walletId: string) => {
+    setSelectedWallets(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(walletId)) {
+        newSet.delete(walletId);
+      } else {
+        newSet.add(walletId);
+      }
+      return newSet;
+    });
+  };
 
+  const handleSelectAll = () => {
+    if (selectedWallets.size === filteredWallets.length) {
+      setSelectedWallets(new Set());
+    } else {
+      setSelectedWallets(new Set(filteredWallets.map(w => w._id)));
+    }
+  };
+
+  // Bulk tag operations
+  const handleBulkSetTag = async () => {
+    if (selectedWallets.size === 0) {
+      toast.error('Please select at least one wallet');
+      return;
+    }
+
+    if (!bulkTagValue.trim()) {
+      toast.error('Please enter a tag value');
+      return;
+    }
+
+    const walletIds = Array.from(selectedWallets);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const walletId of walletIds) {
+      try {
+        await updateTagMutation.mutateAsync({ walletId, tag: bulkTagValue.trim() });
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to set tag for wallet ${walletId}:`, error);
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`Tag set for ${successCount} wallet${successCount !== 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to set tag for ${failCount} wallet${failCount !== 1 ? 's' : ''}`);
+    }
+
+    // Reset state
+    setBulkTagValue('');
+    setShowBulkTagModal(false);
+    setSelectedWallets(new Set());
+  };
+
+  const handleBulkRemoveTag = async () => {
+    if (selectedWallets.size === 0) {
+      toast.error('Please select at least one wallet');
+      return;
+    }
+
+    const walletIds = Array.from(selectedWallets);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const walletId of walletIds) {
+      try {
+        await removeTagMutation.mutateAsync(walletId);
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to remove tag for wallet ${walletId}:`, error);
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`Tag removed from ${successCount} wallet${successCount !== 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to remove tag from ${failCount} wallet${failCount !== 1 ? 's' : ''}`);
+    }
+
+    // Reset selection
+    setSelectedWallets(new Set());
+  };
 
   if (isLoading) {
     return (
@@ -250,6 +364,25 @@ export const Wallets: React.FC = () => {
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Force Update Balances
               </Button>
+              {selectedWallets.size > 0 && (
+                <>
+                  <Button
+                    variant="primary"
+                    onClick={() => setShowBulkTagModal(true)}
+                  >
+                    <Tags className="w-4 h-4 mr-2" />
+                    Set Tag ({selectedWallets.size})
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={handleBulkRemoveTag}
+                    loading={removeTagMutation.isPending}
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Remove Tags ({selectedWallets.size})
+                  </Button>
+                </>
+              )}
             </>
           )}
           {showStrategicGeneration && (
@@ -271,7 +404,7 @@ export const Wallets: React.FC = () => {
       {/* Filters */}
       {!showStrategicGeneration && (
         <Card>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
               <div className="relative">
@@ -326,6 +459,21 @@ export const Wallets: React.FC = () => {
                   <option key={chain.chainId || chain.id} value={chain.chainId || chain.id}>
                     {chain.name || getChainNameFromService(chain.chainId || chain.id)}
                   </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tag</label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                value={selectedTag}
+                onChange={(e) => setSelectedTag(e.target.value)}
+              >
+                <option value="">All Tags</option>
+                <option value="no-tag">No Tag</option>
+                {uniqueTags.map(tag => (
+                  <option key={tag} value={tag}>{tag}</option>
                 ))}
               </select>
             </div>
@@ -478,11 +626,20 @@ export const Wallets: React.FC = () => {
             <table className="table">
               <thead>
                 <tr>
+                  <th>
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-sm"
+                      checked={selectedWallets.size === filteredWallets.length && filteredWallets.length > 0}
+                      onChange={handleSelectAll}
+                    />
+                  </th>
                   <th>Address</th>
                   <th>Type</th>
                   <th>Status</th>
                   <th>Chain</th>
                   <th>Balance</th>
+                  <th>Tag</th>
                   {showTokenInfo && (
                     <>
                       <th>Tokens</th>
@@ -500,6 +657,14 @@ export const Wallets: React.FC = () => {
                   
                   return (
                     <tr key={wallet._id}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          className="checkbox checkbox-sm"
+                          checked={selectedWallets.has(wallet._id)}
+                          onChange={() => handleWalletSelection(wallet._id)}
+                        />
+                      </td>
                       <td>
                         <div className="flex items-center">
                           <Wallet className="w-4 h-4 text-gray-400 mr-2" />
@@ -535,6 +700,18 @@ export const Wallets: React.FC = () => {
                         <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {formatWalletBalance(wallet.nativeTokenBalance || '0', wallet.chainId)}
                         </span>
+                      </td>
+                      <td>
+                        {wallet.tag ? (
+                          <div className="flex items-center">
+                            <Tag className="w-3 h-3 text-blue-500 mr-1" />
+                            <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                              {wallet.tag}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">No tag</span>
+                        )}
                       </td>
                       {showTokenInfo && (
                         <>
@@ -690,6 +867,61 @@ export const Wallets: React.FC = () => {
           refetch();
         }}
       />
+
+      {/* Bulk Tag Modal */}
+      {showBulkTagModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Set Tag for {selectedWallets.size} Wallets
+              </h3>
+              <button
+                onClick={() => setShowBulkTagModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Tag Value
+              </label>
+              <input
+                type="text"
+                placeholder="Enter tag value..."
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                value={bulkTagValue}
+                onChange={(e) => setBulkTagValue(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleBulkSetTag();
+                  }
+                }}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <Button
+                variant="secondary"
+                onClick={() => setShowBulkTagModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleBulkSetTag}
+                loading={updateTagMutation.isPending}
+                disabled={!bulkTagValue.trim()}
+              >
+                <Tag className="w-4 h-4 mr-2" />
+                Set Tag
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

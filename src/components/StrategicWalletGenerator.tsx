@@ -27,13 +27,13 @@ const WALLET_TYPES = [
 export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> = ({
   onJobStarted
 }) => {
-  const [totalWallets, setTotalWallets] = useState(10);
+  const [totalWallets, setTotalWallets] = useState(40);
   const [planName, setPlanName] = useState('');
   const [distribution, setDistribution] = useState([
-    { type: 'TrendTrader' as const, count: 4 },
-    { type: 'MajorTrader' as const, count: 2 },
-    { type: 'Holder' as const, count: 2 },
-    { type: 'Trencher' as const, count: 2 },
+    { type: 'TrendTrader' as const, count: 10 },
+    { type: 'MajorTrader' as const, count: 10 },
+    { type: 'Holder' as const, count: 10 },
+    { type: 'Trencher' as const, count: 10 },
   ]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [enableDelays, setEnableDelays] = useState(true);
@@ -43,23 +43,46 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
 
   // Update distribution when total wallets change
   const handleTotalWalletsChange = (newTotal: number) => {
+    if (newTotal < 1) return; // Don't allow invalid totals
+    
     setTotalWallets(newTotal);
     
-    // Redistribute proportionally
-    const currentTotal = distribution.reduce((sum, item) => sum + item.count, 0);
-    if (currentTotal > 0) {
-      const newDistribution = distribution.map(item => ({
-        ...item,
-        count: Math.max(1, Math.floor((item.count / currentTotal) * newTotal))
-      }));
-      
-      // Adjust for rounding errors
-      const newSum = newDistribution.reduce((sum, item) => sum + item.count, 0);
-      const diff = newTotal - newSum;
-      if (diff !== 0) {
-        newDistribution[0].count += diff;
+    // Only redistribute if we have a reasonable number of wallets
+    if (newTotal >= distribution.length) {
+      const currentTotal = distribution.reduce((sum, item) => sum + item.count, 0);
+      if (currentTotal > 0) {
+        // Calculate proportional distribution
+        const newDistribution = distribution.map(item => ({
+          ...item,
+          count: Math.max(1, Math.floor((item.count / currentTotal) * newTotal))
+        }));
+        
+        // Ensure no negative numbers and handle rounding
+        const newSum = newDistribution.reduce((sum, item) => sum + item.count, 0);
+        const diff = newTotal - newSum;
+        
+        if (diff > 0) {
+          // Add remaining wallets to the first type
+          newDistribution[0].count += diff;
+        } else if (diff < 0) {
+          // Remove excess wallets from types that have more than 1
+          let remaining = Math.abs(diff);
+          for (let i = 0; i < newDistribution.length && remaining > 0; i++) {
+            const canRemove = Math.max(0, newDistribution[i].count - 1);
+            const toRemove = Math.min(remaining, canRemove);
+            newDistribution[i].count -= toRemove;
+            remaining -= toRemove;
+          }
+        }
+        
+        setDistribution(newDistribution);
       }
-      
+    } else {
+      // If total is less than number of types, give 1 to each type up to the total
+      const newDistribution = distribution.map((item, index) => ({
+        ...item,
+        count: index < newTotal ? 1 : 0
+      }));
       setDistribution(newDistribution);
     }
   };
@@ -91,6 +114,19 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
 
   const getTotalDistribution = () => {
     return distribution.reduce((sum, item) => sum + item.count, 0);
+  };
+
+  // Auto-distribute wallets evenly across all types
+  const autoDistribute = () => {
+    const perType = Math.floor(totalWallets / distribution.length);
+    const remainder = totalWallets % distribution.length;
+    
+    const newDistribution = distribution.map((item, index) => ({
+      ...item,
+      count: perType + (index < remainder ? 1 : 0)
+    }));
+    
+    setDistribution(newDistribution);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -127,12 +163,12 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
       
       // Reset form
       setPlanName('');
-      setTotalWallets(10);
+      setTotalWallets(40);
       setDistribution([
-        { type: 'TrendTrader', count: 4 },
-        { type: 'MajorTrader', count: 2 },
-        { type: 'Holder', count: 2 },
-        { type: 'Trencher', count: 2 },
+        { type: 'TrendTrader', count: 10 },
+        { type: 'MajorTrader', count: 10 },
+        { type: 'Holder', count: 10 },
+        { type: 'Trencher', count: 10 },
       ]);
       
       // Notify parent component
@@ -172,7 +208,24 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
                 min="1"
                 max="1000"
                 value={totalWallets}
-                onChange={(e) => handleTotalWalletsChange(parseInt(e.target.value) || 1)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '') {
+                    setTotalWallets(1);
+                  } else {
+                    const numValue = parseInt(value);
+                    if (!isNaN(numValue) && numValue >= 1 && numValue <= 1000) {
+                      handleTotalWalletsChange(numValue);
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  // Ensure valid value on blur
+                  const value = parseInt(e.target.value);
+                  if (isNaN(value) || value < 1) {
+                    setTotalWallets(1);
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 required
               />
@@ -231,7 +284,24 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
                       type="number"
                       min="0"
                       value={item.count}
-                      onChange={(e) => handleDistributionChange(index, parseInt(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '') {
+                          handleDistributionChange(index, 0);
+                        } else {
+                          const numValue = parseInt(value);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            handleDistributionChange(index, numValue);
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // Ensure valid value on blur
+                        const value = parseInt(e.target.value);
+                        if (isNaN(value) || value < 0) {
+                          handleDistributionChange(index, 0);
+                        }
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                     />
                   </div>
@@ -251,16 +321,27 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
           </div>
           
           <div className="flex justify-between items-center mt-3">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={addWalletType}
-              disabled={distribution.length >= WALLET_TYPES.length}
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Add Type
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={addWalletType}
+                disabled={distribution.length >= WALLET_TYPES.length}
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add Type
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={autoDistribute}
+                title="Distribute wallets evenly across all types"
+              >
+                ⚡ Auto-distribute
+              </Button>
+            </div>
             <div className="text-sm text-gray-600 dark:text-gray-400">
               Total: {getTotalDistribution()} / {totalWallets}
               {getTotalDistribution() !== totalWallets && (

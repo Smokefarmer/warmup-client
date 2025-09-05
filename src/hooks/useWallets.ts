@@ -282,12 +282,53 @@ export const useRefreshTokenCount = () => {
       if (data.refreshed) {
         toast.success(`Token count updated: ${data.update.previousCount} → ${data.update.newCount}`);
       } else {
-        toast.info('Token count is up to date');
+        toast.success('Token count is up to date');
       }
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || error.message || 'Failed to refresh token count';
       toast.error(`Failed to refresh token count: ${message}`);
+    },
+  });
+};
+
+// ============ WALLET TAG HOOKS ============
+
+// Update wallet tag
+export const useUpdateWalletTag = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ walletId, tag }: { walletId: string; tag: string }) => 
+      WalletService.updateWalletTag(walletId, tag),
+    onSuccess: (data, { tag }) => {
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets-with-token-info'] });
+      queryClient.invalidateQueries({ queryKey: ['archived-wallets'] });
+      toast.success(`Tag updated: "${tag}"`);
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || 'Failed to update tag';
+      toast.error(`Failed to update tag: ${message}`);
+    },
+  });
+};
+
+// Remove wallet tag
+export const useRemoveWalletTag = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (walletId: string) => WalletService.removeWalletTag(walletId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets-with-token-info'] });
+      queryClient.invalidateQueries({ queryKey: ['archived-wallets'] });
+      toast.success('Tag removed');
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || 'Failed to remove tag';
+      toast.error(`Failed to remove tag: ${message}`);
     },
   });
 };

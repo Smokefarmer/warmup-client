@@ -74,6 +74,7 @@ export interface IWallet {
   createdAt: string;
   updatedAt: string;
   archivedAt?: string;
+  tag?: string;
   tokenInfo?: TokenInfo;
   solanaAccountInfo?: {
     lamports: number;

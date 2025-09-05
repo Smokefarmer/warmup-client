@@ -362,4 +362,28 @@ export class WalletService {
       throw error;
     }
   }
+
+  // ============ WALLET TAG METHODS ============
+
+  // Update wallet tag
+  static async updateWalletTag(walletId: string, tag: string) {
+    try {
+      const response = await api.put(`/api/wallets/${walletId}/tag`, { tag: tag.trim() });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating wallet tag:', error);
+      throw error;
+    }
+  }
+
+  // Remove wallet tag
+  static async removeWalletTag(walletId: string) {
+    try {
+      await api.delete(`/api/wallets/${walletId}/tag`);
+      return { success: true };
+    } catch (error) {
+      console.error('Error removing wallet tag:', error);
+      throw error;
+    }
+  }
 }
