@@ -330,13 +330,14 @@ export class WalletService {
     }
   }
 
-  // Get system token statistics
-  static async getTokenStatistics() {
+
+  // Get system token limits
+  static async getSystemTokenLimits() {
     try {
-      const response = await api.get('/api/wallets/system/token-statistics');
+      const response = await api.get('/api/wallets/system/token-limits');
       return response.data;
     } catch (error) {
-      console.error('Error fetching token statistics:', error);
+      console.error('Error fetching system token limits:', error);
       throw error;
     }
   }

@@ -243,11 +243,12 @@ export const useWalletTokenHoldings = (walletId: string) => {
   });
 };
 
-// Get system token statistics
-export const useTokenStatistics = () => {
+
+// Get system token limits
+export const useSystemTokenLimits = () => {
   return useQuery({
-    queryKey: ['token-statistics'],
-    queryFn: () => WalletService.getTokenStatistics(),
+    queryKey: ['system-token-limits'],
+    queryFn: () => WalletService.getSystemTokenLimits(),
     staleTime: 60000, // 1 minute
     retry: false, // Don't retry if endpoint doesn't exist yet
     enabled: true, // Keep enabled but handle errors gracefully

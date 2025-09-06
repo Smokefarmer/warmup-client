@@ -16,7 +16,7 @@ import {
   useArchiveWallet,
   useWalletsWithTokenInfo,
   useRefreshTokenCount,
-  useTokenStatistics,
+  useSystemTokenLimits,
   useUpdateWalletTag,
   useRemoveWalletTag
 } from '../hooks/useWallets';
@@ -51,31 +51,17 @@ import {
   TokenProgressBar, 
   SellProbabilityBadge, 
   TokenStatusIndicator,
-  TokenStatisticsCard
+  TokenLimitsCard
 } from '../components/token';
 
 export const Wallets: React.FC = () => {
-  // Token management hooks
-  const [showTokenInfo, setShowTokenInfo] = useState(true);
-  
-  // Conditional data loading based on token info toggle
+  // Always load wallets with token info since we're displaying token limits
   const { 
-    data: activeWalletsWithToken = [], 
-    isLoading: activeLoadingWithToken, 
+    data: activeWallets = [], 
+    isLoading: activeLoading, 
     error: tokenWalletsError,
-    refetch: refetchActiveWithToken 
+    refetch: refetchActive 
   } = useWalletsWithTokenInfo();
-  
-  const { 
-    data: activeWalletsRegular = [], 
-    isLoading: activeLoadingRegular, 
-    refetch: refetchActiveRegular 
-  } = useWallets();
-  
-  // Use token-enabled wallets if available and token info is enabled, otherwise fallback to regular
-  const activeWallets = showTokenInfo && !tokenWalletsError ? activeWalletsWithToken : activeWalletsRegular;
-  const activeLoading = showTokenInfo && !tokenWalletsError ? activeLoadingWithToken : activeLoadingRegular;
-  const refetchActive = showTokenInfo && !tokenWalletsError ? refetchActiveWithToken : refetchActiveRegular;
   const { data: archivedWallets = [], isLoading: archivedLoading, refetch: refetchArchived } = useArchivedWallets();
   const { getExplorerUrl, getChainName: getChainNameFromService, supportedChains } = useMultiChain();
   const [showGenerateModal, setShowGenerateModal] = useState(false);
@@ -83,7 +69,7 @@ export const Wallets: React.FC = () => {
   const [showArchived, setShowArchived] = useState(false);
   
   // Additional token management hooks
-  const { data: tokenStatistics, error: tokenStatsError } = useTokenStatistics();
+  const { data: systemTokenLimits, error: tokenLimitsError } = useSystemTokenLimits();
   const refreshTokenCountMutation = useRefreshTokenCount();
   
   // Tag management hooks
@@ -569,13 +555,13 @@ export const Wallets: React.FC = () => {
         </div>
       )}
 
-      {/* Token Statistics */}
-      {!showStrategicGeneration && tokenStatistics && !tokenStatsError && (
-        <TokenStatisticsCard statistics={tokenStatistics} />
+      {/* Token Limits Overview */}
+      {!showStrategicGeneration && systemTokenLimits && !tokenLimitsError && (
+        <TokenLimitsCard tokenLimits={systemTokenLimits} />
       )}
       
-      {/* Token Statistics Error (Development Info) */}
-      {!showStrategicGeneration && tokenStatsError && (
+      {/* Token Limits Error (Development Info) */}
+      {!showStrategicGeneration && tokenLimitsError && (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -583,36 +569,19 @@ export const Wallets: React.FC = () => {
             </div>
             <div className="ml-3">
               <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                Token Statistics Unavailable
+                Token Limits Unavailable
               </h3>
               <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                The token statistics endpoint is not available yet. Token information in the wallet list will still work once the backend endpoints are implemented.
+                The token limits endpoint is not available yet. Token information in the wallet list will still work once the backend endpoints are implemented.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Token Info Toggle */}
+      {/* Wallet Count */}
       {!showStrategicGeneration && (
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4">
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={showTokenInfo}
-                onChange={(e) => setShowTokenInfo(e.target.checked)}
-                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                <Coins className="w-4 h-4 inline mr-1" />
-                Show Token Information
-                {tokenWalletsError && (
-                  <span className="text-xs text-yellow-600 ml-1">(API not ready)</span>
-                )}
-              </span>
-            </label>
-          </div>
+        <div className="flex items-center justify-end mb-4">
           <div className="text-sm text-gray-500 dark:text-gray-400">
             {filteredWallets.length} wallet{filteredWallets.length !== 1 ? 's' : ''} shown
           </div>
@@ -640,13 +609,9 @@ export const Wallets: React.FC = () => {
                   <th>Chain</th>
                   <th>Balance</th>
                   <th>Tag</th>
-                  {showTokenInfo && (
-                    <>
-                      <th>Tokens</th>
-                      <th>Sell Probability</th>
-                      <th>Status</th>
-                    </>
-                  )}
+                  <th>Max Tokens</th>
+                  <th>Current Tokens</th>
+                  <th>Sell Probability</th>
                   <th>Created</th>
                   <th>Actions</th>
                 </tr>
@@ -713,46 +678,38 @@ export const Wallets: React.FC = () => {
                           <span className="text-xs text-gray-400">No tag</span>
                         )}
                       </td>
-                      {showTokenInfo && (
-                        <>
-                          <td>
-                            {wallet.tokenInfo ? (
-                              <TokenProgressBar
-                                current={wallet.tokenInfo.currentTokenCount}
-                                max={wallet.tokenInfo.maxTokens}
-                                size="sm"
-                                showLabels={false}
-                                className="w-24"
-                              />
-                            ) : (
-                              <span className="text-xs text-gray-400">No data</span>
-                            )}
-                          </td>
-                          <td>
-                            {wallet.tokenInfo ? (
-                              <SellProbabilityBadge
-                                probability={wallet.tokenInfo.sellProbability}
-                                size="sm"
-                              />
-                            ) : (
-                              <span className="text-xs text-gray-400">-</span>
-                            )}
-                          </td>
-                          <td>
-                            {wallet.tokenInfo ? (
-                              <TokenStatusIndicator
-                                canBuy={wallet.tokenInfo.canBuy}
-                                shouldForceSell={wallet.tokenInfo.shouldForceSell}
-                                reason={wallet.tokenInfo.reason}
-                                size="sm"
-                                showReason={false}
-                              />
-                            ) : (
-                              <span className="text-xs text-gray-400">-</span>
-                            )}
-                          </td>
-                        </>
-                      )}
+                      <td>
+                        {wallet.tokenInfo ? (
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {wallet.tokenInfo.maxTokens}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td>
+                        {wallet.tokenInfo ? (
+                          <TokenProgressBar
+                            current={wallet.tokenInfo.currentTokenCount}
+                            max={wallet.tokenInfo.maxTokens}
+                            size="sm"
+                            showLabels={false}
+                            className="w-24"
+                          />
+                        ) : (
+                          <span className="text-xs text-gray-400">No data</span>
+                        )}
+                      </td>
+                      <td>
+                        {wallet.tokenInfo ? (
+                          <SellProbabilityBadge
+                            probability={wallet.tokenInfo.sellProbability}
+                            size="sm"
+                          />
+                        ) : (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
+                      </td>
                       <td>
                         <span className="text-sm text-gray-500 dark:text-gray-400">{formatDate(wallet.createdAt)}</span>
                       </td>
@@ -801,17 +758,15 @@ export const Wallets: React.FC = () => {
                             <RefreshCw className="w-3 h-3" />
                           </Button>
                           
-                          {showTokenInfo && (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => refreshTokenCountMutation.mutate(wallet._id)}
-                              loading={refreshTokenCountMutation.isPending}
-                              title="Refresh token count"
-                            >
-                              <Coins className="w-3 h-3" />
-                            </Button>
-                          )}
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => refreshTokenCountMutation.mutate(wallet._id)}
+                            loading={refreshTokenCountMutation.isPending}
+                            title="Refresh token count"
+                          >
+                            <Coins className="w-3 h-3" />
+                          </Button>
                           
                           <Button
                             variant="secondary"
