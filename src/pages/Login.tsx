@@ -61,11 +61,15 @@ export const Login: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/20">
-            <Shield className="h-6 w-6 text-primary-600 dark:text-primary-400" />
+          <div className="mx-auto h-16 w-16 flex items-center justify-center">
+            <img 
+              src="/ATH-LOGO.png" 
+              alt="ATH Logo" 
+              className="h-12 w-12 object-contain"
+            />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-gray-100">
-            Sign in to Warmup Client
+            Sign in to ATH Warmup Tool
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Access your wallet management dashboard

@@ -63,7 +63,14 @@ const Navigation: React.FC = () => {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
           <div className="flex h-16 items-center justify-between px-4">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Warmup Client</h1>
+            <div className="flex items-center space-x-3">
+              <img 
+                src="/ATH-LOGO.png" 
+                alt="ATH Logo" 
+                className="h-8 w-8 object-contain"
+              />
+              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">ATH Warmup Tool</h1>
+            </div>
             <div className="flex items-center space-x-2">
               <DarkModeToggle />
               <button
@@ -125,7 +132,14 @@ const Navigation: React.FC = () => {
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700">
           <div className="flex h-16 items-center justify-between px-4">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Warmup Client</h1>
+            <div className="flex items-center space-x-3">
+              <img 
+                src="/ATH-LOGO.png" 
+                alt="ATH Logo" 
+                className="h-8 w-8 object-contain"
+              />
+              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">ATH Warmup Tool</h1>
+            </div>
             <DarkModeToggle />
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
@@ -177,7 +191,14 @@ const Navigation: React.FC = () => {
       {/* Mobile header */}
       <div className="lg:hidden">
         <div className="flex h-16 items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 dark:bg-gray-800">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Warmup Client</h1>
+          <div className="flex items-center space-x-3">
+            <img 
+              src="/ATH-LOGO.png" 
+              alt="ATH Logo" 
+              className="h-8 w-8 object-contain"
+            />
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">ATH Warmup Tool</h1>
+          </div>
           <div className="flex items-center space-x-2">
             <DarkModeToggle />
             <button
