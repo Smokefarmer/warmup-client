@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { Button } from './common/Button';
+import { TagsInput } from './common/TagsInput';
 import { useAvailableWallets } from '../hooks/useWallets';
 import { useMultiChain } from '../hooks/useMultiChain';
 import { useCreateWarmupProcess } from '../hooks/useWarmupProcesses';
@@ -31,6 +32,7 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    tags: [] as string[],
     selectedChainId: '',
     selectedWalletIds: [] as string[]
   });
@@ -113,6 +115,7 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
       const processData = {
         name: formData.name,
         description: formData.description,
+        tags: formData.tags.length > 0 ? formData.tags : undefined,
         walletIds: formData.selectedWalletIds
       };
 
@@ -125,6 +128,7 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
       setFormData({
         name: '',
         description: '',
+        tags: [],
         selectedChainId: '',
         selectedWalletIds: []
       });
@@ -226,6 +230,21 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 />
+              </div>
+
+              {/* Tags Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Tags (Optional)
+                </label>
+                <TagsInput
+                  tags={formData.tags}
+                  onChange={(tags) => setFormData(prev => ({ ...prev, tags }))}
+                  placeholder="Add tags to categorize your process..."
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Press Enter or comma to add tags. Use tags like "production", "test", "high-priority" etc.
+                </p>
               </div>
 
               {/* Chain Statistics */}

@@ -43,6 +43,7 @@ export class WarmupService {
       name: process.name,
       walletIds: process.walletIds,
       ...(process.description && { description: process.description }),
+      ...(process.tags && process.tags.length > 0 && { tags: process.tags }),
       ...(process.configuration && { 
         configuration: {
           ...(process.configuration.maxConcurrentWallets && { maxConcurrentWallets: process.configuration.maxConcurrentWallets }),
