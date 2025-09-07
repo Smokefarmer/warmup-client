@@ -32,8 +32,7 @@ export const Processes: React.FC = () => {
   
   const [filters, setFilters] = useState({
     status: '',
-    search: '',
-    tag: ''
+    search: ''
   });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showProgressDashboard, setShowProgressDashboard] = useState(false);
@@ -47,25 +46,9 @@ export const Processes: React.FC = () => {
   // Ensure processes is an array and handle errors
   const processesArray = Array.isArray(processes) ? processes : [];
   
-  // Get unique tags for filter dropdown
-  const uniqueTags = Array.from(
-    new Set(
-      processesArray
-        .filter(process => process.tags && process.tags.length > 0)
-        .flatMap(process => process.tags!)
-    )
-  ).sort();
-  
   const filteredProcesses = processesArray.filter(process => {
     if (filters.status && process.status !== filters.status) return false;
     if (filters.search && !process.name.toLowerCase().includes(filters.search.toLowerCase())) return false;
-    if (filters.tag) {
-      if (filters.tag === 'no-tag') {
-        if (process.tags && process.tags.length > 0) return false;
-      } else {
-        if (!process.tags || !process.tags.includes(filters.tag)) return false;
-      }
-    }
     return true;
   });
 
@@ -199,7 +182,7 @@ export const Processes: React.FC = () => {
 
       {/* Filters */}
       <Card>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
             <input
@@ -226,21 +209,6 @@ export const Processes: React.FC = () => {
               <option value="stopped">Stopped</option>
             </select>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tag</label>
-            <select
-              className="input"
-              value={filters.tag}
-              onChange={(e) => setFilters(prev => ({ ...prev, tag: e.target.value }))}
-            >
-              <option value="">All Tags</option>
-              <option value="no-tag">No Tag</option>
-              {uniqueTags.map(tag => (
-                <option key={tag} value={tag}>{tag}</option>
-              ))}
-            </select>
-          </div>
         </div>
       </Card>
 
@@ -252,7 +220,6 @@ export const Processes: React.FC = () => {
               <tr>
                 <th>Name</th>
                 <th>Status</th>
-                <th>Tags</th>
                 <th>Wallets</th>
                 <th>Created</th>
                 <th>Started</th>
@@ -275,22 +242,6 @@ export const Processes: React.FC = () => {
                   </td>
                   <td>
                     <StatusBadge status={process.status} />
-                  </td>
-                  <td>
-                    <div className="flex flex-wrap gap-1">
-                      {process.tags && process.tags.length > 0 ? (
-                        process.tags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-md"
-                          >
-                            {tag}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-gray-400">No tags</span>
-                      )}
-                    </div>
                   </td>
                   <td>
                     <div className="flex items-center">

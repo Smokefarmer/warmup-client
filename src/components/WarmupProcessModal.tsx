@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { Button } from './common/Button';
-import { TagsInput } from './common/TagsInput';
 import { useAvailableWallets } from '../hooks/useWallets';
 import { useMultiChain } from '../hooks/useMultiChain';
 import { useCreateWarmupProcess } from '../hooks/useWarmupProcesses';
@@ -32,8 +31,8 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    tags: [] as string[],
     selectedChainId: '',
+    selectedTagId: '',
     selectedWalletIds: [] as string[]
   });
 
@@ -49,10 +48,23 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
     getExplorerUrl 
   } = useMultiChain();
 
-  // Filter wallets by selected chain
+  // Filter wallets by selected chain and tag
   const filteredWallets = availableWallets.filter((wallet) => {
-    if (!formData.selectedChainId) return true; // Show all if no chain selected
-    return wallet.chainId === parseInt(formData.selectedChainId);
+    // Filter by chain
+    if (formData.selectedChainId && wallet.chainId !== parseInt(formData.selectedChainId)) {
+      return false;
+    }
+    
+    // Filter by tag
+    if (formData.selectedTagId) {
+      if (formData.selectedTagId === 'no-tag') {
+        return !wallet.tag || wallet.tag.trim() === '';
+      } else {
+        return wallet.tag === formData.selectedTagId;
+      }
+    }
+    
+    return true;
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -63,8 +75,8 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
 
-    // Clear selected wallets when chain changes
-    if (field === 'selectedChainId') {
+    // Clear selected wallets when chain or tag changes
+    if (field === 'selectedChainId' || field === 'selectedTagId') {
       setFormData(prev => ({ ...prev, selectedWalletIds: [] }));
     }
   };
@@ -115,7 +127,6 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
       const processData = {
         name: formData.name,
         description: formData.description,
-        tags: formData.tags.length > 0 ? formData.tags : undefined,
         walletIds: formData.selectedWalletIds
       };
 
@@ -128,8 +139,8 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
       setFormData({
         name: '',
         description: '',
-        tags: [],
         selectedChainId: '',
+        selectedTagId: '',
         selectedWalletIds: []
       });
       setErrors({});
@@ -140,6 +151,15 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
     }
   };
 
+  // Get unique tags from available wallets
+  const uniqueTags = Array.from(
+    new Set(
+      availableWallets
+        .filter(wallet => wallet.tag && wallet.tag.trim())
+        .map(wallet => wallet.tag!)
+    )
+  ).sort();
+
   const getChainStats = () => {
     const stats: Record<number, number> = {};
     filteredWallets.forEach(wallet => {
@@ -148,7 +168,17 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
     return stats;
   };
 
+  const getTagStats = () => {
+    const stats: Record<string, number> = {};
+    filteredWallets.forEach(wallet => {
+      const tag = wallet.tag || 'no-tag';
+      stats[tag] = (stats[tag] || 0) + 1;
+    });
+    return stats;
+  };
+
   const chainStats = getChainStats();
+  const tagStats = getTagStats();
 
   // Don't render if not open
   if (!isOpen) return null;
@@ -179,7 +209,7 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
 
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Process Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Process Name *
@@ -200,22 +230,42 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Chain Filter (Optional)
-                  </label>
-                  <select
-                    value={formData.selectedChainId}
-                    onChange={(e) => handleInputChange('selectedChainId', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                  >
-                    <option value="">All Chains</option>
-                    {enabledChains?.map(chain => (
-                      <option key={chain.chainId || chain.id} value={chain.chainId || chain.id}>
-                        {chain.name || getChainNameFromService(chain.chainId || chain.id)}
-                      </option>
-                    ))}
-                  </select>
+                {/* Wallet Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Chain Filter (Optional)
+                    </label>
+                    <select
+                      value={formData.selectedChainId}
+                      onChange={(e) => handleInputChange('selectedChainId', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    >
+                      <option value="">All Chains</option>
+                      {enabledChains?.map(chain => (
+                        <option key={chain.chainId || chain.id} value={chain.chainId || chain.id}>
+                          {chain.name || getChainNameFromService(chain.chainId || chain.id)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Tag Filter (Optional)
+                    </label>
+                    <select
+                      value={formData.selectedTagId}
+                      onChange={(e) => handleInputChange('selectedTagId', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    >
+                      <option value="">All Tags</option>
+                      <option value="no-tag">No Tag</option>
+                      {uniqueTags.map(tag => (
+                        <option key={tag} value={tag}>{tag}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -232,42 +282,58 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
                 />
               </div>
 
-              {/* Tags Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Tags (Optional)
-                </label>
-                <TagsInput
-                  tags={formData.tags}
-                  onChange={(tags) => setFormData(prev => ({ ...prev, tags }))}
-                  placeholder="Add tags to categorize your process..."
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Press Enter or comma to add tags. Use tags like "production", "test", "high-priority" etc.
-                </p>
-              </div>
-
-              {/* Chain Statistics */}
-              {Object.keys(chainStats).length > 0 && (
+              {/* Wallet Statistics */}
+              {(Object.keys(chainStats).length > 0 || Object.keys(tagStats).length > 0) && (
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                   <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-                    Available Wallets by Chain
+                    Available Wallets ({filteredWallets.length} total)
                   </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {Object.entries(chainStats).map(([chainId, count]) => (
-                      <div key={chainId} className="flex items-center justify-between p-2 bg-white dark:bg-gray-700 rounded border">
-                        <div className="flex items-center">
-                          <Network className="w-4 h-4 text-gray-400 mr-2" />
-                          <span className="text-sm font-medium">
-                            {getChainNameFromService(parseInt(chainId))}
-                          </span>
-                        </div>
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          {count} wallet{count !== 1 ? 's' : ''}
-                        </span>
+                  
+                  {/* Chain Statistics */}
+                  {Object.keys(chainStats).length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">By Chain:</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {Object.entries(chainStats).map(([chainId, count]) => (
+                          <div key={chainId} className="flex items-center justify-between p-2 bg-white dark:bg-gray-700 rounded border">
+                            <div className="flex items-center">
+                              <Network className="w-3 h-3 text-gray-400 mr-1" />
+                              <span className="text-xs font-medium">
+                                {getChainNameFromService(parseInt(chainId))}
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-600 dark:text-gray-400">
+                              {count}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Tag Statistics */}
+                  {Object.keys(tagStats).length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">By Tag:</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {Object.entries(tagStats).map(([tag, count]) => (
+                          <div key={tag} className="flex items-center justify-between p-2 bg-white dark:bg-gray-700 rounded border">
+                            <div className="flex items-center">
+                              <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                                tag === 'no-tag' ? 'bg-gray-400' : 'bg-blue-500'
+                              }`} />
+                              <span className="text-xs font-medium">
+                                {tag === 'no-tag' ? 'No Tag' : tag}
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-600 dark:text-gray-400">
+                              {count}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -365,6 +431,13 @@ export const WarmupProcessModal: React.FC<WarmupProcessModalProps> = ({
                                     <span>•</span>
                                     <span>{wallet.nativeTokenBalance || '0'} balance</span>
                                   </div>
+                                  {wallet.tag && (
+                                    <div className="mt-1">
+                                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-md">
+                                        {wallet.tag}
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>

@@ -4,7 +4,6 @@ export interface IWarmupProcess {
   _id: string;
   name: string;
   description?: string;
-  tags?: string[];
   status: string;
   walletIds: string[];
   wallets?: IWarmUpWallet[];
@@ -51,7 +50,6 @@ export interface CreateWarmupProcessDto {
   name: string;
   walletIds: string[];
   description?: string; // Optional description field
-  tags?: string[]; // Optional tags field
   configuration?: {
     maxConcurrentWallets?: number;
     transactionInterval?: number; // seconds
@@ -63,7 +61,6 @@ export interface CreateWarmupProcessDto {
 
 export interface WarmupFilters {
   status?: string;
-  tags?: string[];
   limit?: number;
   offset?: number;
 }
