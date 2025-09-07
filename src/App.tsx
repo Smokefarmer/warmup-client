@@ -5,17 +5,23 @@ import { Dashboard } from './pages/Dashboard';
 import { Wallets } from './pages/Wallets';
 import { Processes } from './pages/Processes';
 import { Funding } from './pages/Funding';
+import { Login } from './pages/Login';
 import { ToastProvider } from './components/ToastProvider';
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { 
   LayoutDashboard, 
   Wallet, 
   Activity, 
   DollarSign,
   Menu,
-  X
+  X,
+  LogOut,
+  User
 } from 'lucide-react';
 import { useState } from 'react';
 import { DarkModeToggle } from './components/common/DarkModeToggle';
+import { useAuth } from './contexts/AuthContext';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -30,6 +36,11 @@ const queryClient = new QueryClient({
 const Navigation: React.FC = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -67,22 +78,46 @@ const Navigation: React.FC = () => {
             {navigation.map((item) => {
               const Icon = item.icon;
               return (
-                                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                      isActive(item.href)
-                        ? 'bg-primary-100 text-primary-900 dark:bg-primary-900 dark:text-primary-100'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-gray-100'
-                    }`}
-                    onClick={() => setSidebarOpen(false)}
-                  >
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                    isActive(item.href)
+                      ? 'bg-primary-100 text-primary-900 dark:bg-primary-900 dark:text-primary-100'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-gray-100'
+                  }`}
+                  onClick={() => setSidebarOpen(false)}
+                >
                   <Icon className="mr-3 h-5 w-5" />
                   {item.name}
                 </Link>
               );
             })}
           </nav>
+          
+          {/* Mobile User Info & Logout */}
+          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-center mb-3">
+              <div className="flex-shrink-0">
+                <User className="h-8 w-8 text-gray-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {user?.email}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Authenticated
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center px-2 py-2 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300 rounded-md"
+            >
+              <LogOut className="mr-3 h-4 w-4" />
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
 
@@ -112,6 +147,30 @@ const Navigation: React.FC = () => {
               );
             })}
           </nav>
+          
+          {/* Desktop User Info & Logout */}
+          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-center mb-3">
+              <div className="flex-shrink-0">
+                <User className="h-8 w-8 text-gray-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {user?.email}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Authenticated
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center px-2 py-2 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300 rounded-md"
+            >
+              <LogOut className="mr-3 h-4 w-4" />
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
 
@@ -134,22 +193,12 @@ const Navigation: React.FC = () => {
   );
 };
 
-const AppContent: React.FC = () => {
+// Wrapper component that includes Navigation only for authenticated routes
+const AuthenticatedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <div className="lg:pl-64">
-      <div className="lg:hidden h-16" /> {/* Spacer for mobile */}
-      <main className="flex-1">
-        <div className="py-6">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/wallets" element={<Wallets />} />
-              <Route path="/processes" element={<Processes />} />
-              <Route path="/funding" element={<Funding />} />
-            </Routes>
-          </div>
-        </div>
-      </main>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Navigation />
+      {children}
     </div>
   );
 };
@@ -158,12 +207,37 @@ const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <ToastProvider>
-          <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-            <Navigation />
-            <AppContent />
-          </div>
-        </ToastProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<Login />} />
+              
+              {/* Protected routes with navigation */}
+              <Route path="/*" element={
+                <ProtectedRoute>
+                  <AuthenticatedLayout>
+                    <div className="lg:pl-64">
+                      <div className="lg:hidden h-16" /> {/* Spacer for mobile */}
+                      <main className="flex-1">
+                        <div className="py-6">
+                          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                            <Routes>
+                              <Route path="/" element={<Dashboard />} />
+                              <Route path="/wallets" element={<Wallets />} />
+                              <Route path="/processes" element={<Processes />} />
+                              <Route path="/funding" element={<Funding />} />
+                            </Routes>
+                          </div>
+                        </div>
+                      </main>
+                    </div>
+                  </AuthenticatedLayout>
+                </ProtectedRoute>
+              } />
+            </Routes>
+          </ToastProvider>
+        </AuthProvider>
       </Router>
     </QueryClientProvider>
   );
