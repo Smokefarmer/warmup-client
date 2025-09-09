@@ -46,6 +46,7 @@ export const Funding: React.FC = () => {
   const [selectedChain, setSelectedChain] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedTag, setSelectedTag] = useState('');
   const [showOnlyZeroBalance, setShowOnlyZeroBalance] = useState(false);
   const [showOnlyWithBalance, setShowOnlyWithBalance] = useState(false);
   
@@ -155,6 +156,13 @@ export const Funding: React.FC = () => {
     return null;
   };
 
+  // Get unique tags for filter dropdown
+  const uniqueTags = Array.from(new Set(
+    wallets
+      .filter(wallet => wallet.tag && wallet.tag.trim())
+      .map(wallet => wallet.tag!)
+  )).sort();
+
   // Filter available wallets with all filters applied
   const availableWallets = wallets.filter(wallet => {
     // Base filter: exclude only archived wallets (handle both uppercase and lowercase)
@@ -164,7 +172,8 @@ export const Funding: React.FC = () => {
     // Search filter
     const matchesSearch = !searchTerm || 
       (wallet.publicKey || wallet.address).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      wallet.type.toLowerCase().includes(searchTerm.toLowerCase());
+      wallet.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (wallet.tag && wallet.tag.toLowerCase().includes(searchTerm.toLowerCase()));
 
     // Chain filter
     const matchesChain = !selectedChain || wallet.chainId === parseInt(selectedChain);
@@ -177,12 +186,16 @@ export const Funding: React.FC = () => {
       wallet.status === selectedStatus || 
       wallet.status.toLowerCase() === selectedStatus.toLowerCase();
 
+    // Tag filter
+    const matchesTag = !selectedTag || 
+      (selectedTag === 'no-tag' ? !wallet.tag : wallet.tag === selectedTag);
+
     // Balance filters
     const balance = parseFloat(wallet.nativeTokenBalance || '0');
     const matchesZeroBalance = !showOnlyZeroBalance || balance === 0;
     const matchesWithBalance = !showOnlyWithBalance || balance > 0;
 
-    return matchesSearch && matchesChain && matchesType && matchesStatus && 
+    return matchesSearch && matchesChain && matchesType && matchesStatus && matchesTag &&
            matchesZeroBalance && matchesWithBalance;
   });
 
@@ -680,7 +693,7 @@ export const Funding: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Search */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
@@ -688,7 +701,7 @@ export const Funding: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search by address or type..."
+                  placeholder="Search by address, type, or tag..."
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -742,6 +755,22 @@ export const Funding: React.FC = () => {
                 ))}
               </select>
             </div>
+
+            {/* Tag Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tag</label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                value={selectedTag}
+                onChange={(e) => setSelectedTag(e.target.value)}
+              >
+                <option value="">All Tags</option>
+                <option value="no-tag">No Tag</option>
+                {uniqueTags.map(tag => (
+                  <option key={tag} value={tag}>{tag}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Balance Filters */}
@@ -773,7 +802,7 @@ export const Funding: React.FC = () => {
           </div>
 
           {/* Clear Filters */}
-          {(searchTerm || selectedChain || selectedType || selectedStatus || showOnlyZeroBalance || showOnlyWithBalance) && (
+          {(searchTerm || selectedChain || selectedType || selectedStatus || selectedTag || showOnlyZeroBalance || showOnlyWithBalance) && (
             <div className="flex justify-end">
               <Button
                 variant="secondary"
@@ -783,6 +812,7 @@ export const Funding: React.FC = () => {
                   setSelectedChain('');
                   setSelectedType('');
                   setSelectedStatus('');
+                  setSelectedTag('');
                   setShowOnlyZeroBalance(false);
                   setShowOnlyWithBalance(false);
                 }}
