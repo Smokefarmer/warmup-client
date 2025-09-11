@@ -72,14 +72,6 @@ export const useMultiChain = () => {
     retryDelay: 1000,
   });
 
-  // Get multi-chain statistics
-  const { data: multiChainStats } = useQuery({
-    queryKey: ['multiChainStats'],
-    queryFn: () => MultiChainService.getMultiChainStatistics(),
-    refetchInterval: 30000, // Refetch every 30 seconds
-    retry: 2,
-    retryDelay: 1000,
-  });
 
   // Create multi-chain wallet mutation
   const createWalletMutation = useMutation({
@@ -327,7 +319,6 @@ export const useMultiChain = () => {
     walletsByChain,
     availableWallets,
     multiChainProcesses,
-    multiChainStats,
     
     // Loading states
     walletsLoading,

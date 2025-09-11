@@ -451,42 +451,6 @@ export class MultiChainService {
     }
   }
 
-  // Get multi-chain statistics
-  static async getMultiChainStatistics(): Promise<{
-    totalWallets: number;
-    walletsByChain: Record<ChainId, number>;
-    totalProcesses: number;
-    activeProcesses: number;
-    totalVolume: Record<ChainId, string>;
-  }> {
-    console.log('🌐 Getting multi-chain statistics');
-    
-    try {
-      const response = await api.get('/api/statistics/multi-chain');
-      console.log('✅ Multi-chain statistics retrieved:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('❌ Error getting multi-chain statistics:', error);
-      // Return fallback statistics
-      return {
-        totalWallets: 0,
-        walletsByChain: {
-          [ChainId.BASE]: 0,
-          [ChainId.SOLANA]: 0,
-          [ChainId.SOLANA_DEVNET]: 0,
-          [ChainId.SOLANA_TESTNET]: 0
-        },
-        totalProcesses: 0,
-        activeProcesses: 0,
-        totalVolume: {
-          [ChainId.BASE]: '0',
-          [ChainId.SOLANA]: '0',
-          [ChainId.SOLANA_DEVNET]: '0',
-          [ChainId.SOLANA_TESTNET]: '0'
-        }
-      };
-    }
-  }
 
   // Validate chain support
   static isChainSupported(chainId: number): boolean {

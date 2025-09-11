@@ -43,7 +43,6 @@ export const API_ENDPOINTS = {
   BALANCE_FORCE_UPDATE_ALL: '/api/balance/force-update-all',
   
   // Statistics
-  STATISTICS_MULTI_CHAIN: '/api/statistics/multi-chain',
   WALLETS_STATISTICS: '/api/wallets/statistics',
   
   // Monitoring Dashboard

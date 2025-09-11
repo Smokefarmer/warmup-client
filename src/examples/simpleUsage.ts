@@ -218,7 +218,7 @@ export const directApiCalls = async () => {
 
   const getOverallStats = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/warmup/statistics/multi-chain');
+      const response = await fetch('http://localhost:3000/api/warmup/statistics');
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);

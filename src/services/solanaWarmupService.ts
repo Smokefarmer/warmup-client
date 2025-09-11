@@ -183,11 +183,11 @@ export class SolanaWarmupService {
   }
 
   /**
-   * Get multi-chain overview with Solana focus
+   * Get Solana warmup overview statistics
    */
   static async getSolanaOverallStats(): Promise<any> {
     try {
-      const response = await api.get(`${this.API_BASE_URL}/warmup/statistics/multi-chain`);
+      const response = await api.get(`${this.API_BASE_URL}/warmup/statistics`);
       return response.data;
     } catch (error: any) {
       console.error('❌ Error fetching Solana overall stats:', error.response?.data);
