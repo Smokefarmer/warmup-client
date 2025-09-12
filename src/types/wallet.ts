@@ -156,6 +156,42 @@ export interface TokenHoldings {
   lastScanned: string;
 }
 
+export interface BulkTokenHoldingWallet {
+  id: string;
+  publicKey: string;
+  type: string;
+  status: string;
+  tokenHoldings: {
+    count: number;
+    tokens: {
+      tokenAddress: string;
+      balance: string;
+      balanceFormatted: string;
+      tokenSymbol: string;
+      tokenName: string;
+      lastUpdated: string;
+      firstSeen: string;
+    }[];
+  };
+}
+
+export interface BulkTokenHoldingsResponse {
+  summary: {
+    totalWallets: number;
+    walletsWithTokens: number;
+    walletsEmpty: number;
+    totalTokenHoldings: number;
+    averageTokensPerWallet: string;
+  };
+  pagination: {
+    offset: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+  };
+  wallets: BulkTokenHoldingWallet[];
+}
+
 export interface TokenStatistics {
   totalWallets: number;
   averageMaxTokens: number;

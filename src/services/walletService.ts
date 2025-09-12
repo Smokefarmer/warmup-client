@@ -330,6 +330,26 @@ export class WalletService {
     }
   }
 
+  // Get bulk token holdings for all wallets
+  static async getBulkTokenHoldings(params?: {
+    limit?: number;
+    offset?: number;
+    includeEmpty?: boolean;
+  }): Promise<import('../types/wallet').BulkTokenHoldingsResponse> {
+    try {
+      const searchParams = new URLSearchParams();
+      if (params?.limit) searchParams.set('limit', params.limit.toString());
+      if (params?.offset) searchParams.set('offset', params.offset.toString());
+      if (params?.includeEmpty !== undefined) searchParams.set('includeEmpty', params.includeEmpty.toString());
+      
+      const response = await api.get(`/api/wallets/bulk-token-holdings?${searchParams.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching bulk token holdings:', error);
+      throw error;
+    }
+  }
+
 
   // Get system token limits
   static async getSystemTokenLimits() {

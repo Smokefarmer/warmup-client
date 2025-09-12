@@ -5,6 +5,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Wallets } from './pages/Wallets';
 import { Processes } from './pages/Processes';
 import { Funding } from './pages/Funding';
+import { ProtectedTokens } from './pages/ProtectedTokens';
 import { Login } from './pages/Login';
 import { ToastProvider } from './components/ToastProvider';
 import { AuthProvider } from './contexts/AuthContext';
@@ -14,6 +15,7 @@ import {
   Wallet, 
   Activity, 
   DollarSign,
+  Shield,
   Menu,
   X,
   LogOut,
@@ -47,6 +49,7 @@ const Navigation: React.FC = () => {
     { name: 'Wallets', href: '/wallets', icon: Wallet },
     { name: 'Processes', href: '/processes', icon: Activity },
     { name: 'Funding', href: '/funding', icon: DollarSign },
+    { name: 'Protected Tokens', href: '/protected-tokens', icon: Shield },
   ];
 
   const isActive = (href: string) => {
@@ -248,6 +251,7 @@ const App: React.FC = () => {
                               <Route path="/wallets" element={<Wallets />} />
                               <Route path="/processes" element={<Processes />} />
                               <Route path="/funding" element={<Funding />} />
+                              <Route path="/protected-tokens" element={<ProtectedTokens />} />
                             </Routes>
                           </div>
                         </div>

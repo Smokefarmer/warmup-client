@@ -243,6 +243,20 @@ export const useWalletTokenHoldings = (walletId: string) => {
   });
 };
 
+// Get bulk token holdings
+export const useBulkTokenHoldings = (params?: {
+  limit?: number;
+  offset?: number;
+  includeEmpty?: boolean;
+}) => {
+  return useQuery({
+    queryKey: ['bulk-token-holdings', params],
+    queryFn: () => WalletService.getBulkTokenHoldings(params),
+    staleTime: 30000,
+    refetchInterval: 60000, // Refetch every minute
+  });
+};
+
 
 // Get system token limits
 export const useSystemTokenLimits = () => {

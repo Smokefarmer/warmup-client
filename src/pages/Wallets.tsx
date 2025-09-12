@@ -5,6 +5,7 @@ import { Button } from '../components/common/Button';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { CopyButton } from '../components/common/CopyButton';
+import { ActionsMenu, ActionItem } from '../components/common/ActionsMenu';
 import { StrategicWalletGenerator } from '../components/StrategicWalletGenerator';
 import { GenerateWalletModal } from '../components/GenerateWalletModal';
 
@@ -18,7 +19,8 @@ import {
   useRefreshTokenCount,
   useSystemTokenLimits,
   useUpdateWalletTag,
-  useRemoveWalletTag
+  useRemoveWalletTag,
+  useBulkTokenHoldings
 } from '../hooks/useWallets';
 import { useForceUpdateAllBalances, useUpdateTotalFundedForWallet } from '../hooks/useBalance';
 import { useMultiChain } from '../hooks/useMultiChain';
@@ -49,7 +51,6 @@ import {
 // Import token components
 import { 
   TokenProgressBar, 
-  SellProbabilityBadge, 
   TokenStatusIndicator,
   TokenLimitsCard
 } from '../components/token';
@@ -71,6 +72,12 @@ export const Wallets: React.FC = () => {
   // Additional token management hooks
   const { data: systemTokenLimits, error: tokenLimitsError } = useSystemTokenLimits();
   const refreshTokenCountMutation = useRefreshTokenCount();
+  
+  // Bulk token holdings for improved Current Tokens display
+  const { data: bulkTokenHoldings } = useBulkTokenHoldings({ 
+    limit: 1000, 
+    includeEmpty: false 
+  });
   
   // Tag management hooks
   const updateTagMutation = useUpdateWalletTag();
@@ -97,6 +104,13 @@ export const Wallets: React.FC = () => {
   // Use the correct wallet data based on current view
   const wallets = showArchived ? archivedWallets : activeWallets;
   const isLoading = showArchived ? archivedLoading : activeLoading;
+
+  // Helper function to get token count from bulk data
+  const getTokenCountFromBulkData = (walletId: string) => {
+    if (!bulkTokenHoldings?.wallets) return null;
+    const bulkWallet = bulkTokenHoldings.wallets.find(w => w.id === walletId);
+    return bulkWallet?.tokenHoldings.count || 0;
+  };
   const refetch = showArchived ? refetchArchived : refetchActive;
 
   // Get unique tags for filter dropdown
@@ -609,9 +623,7 @@ export const Wallets: React.FC = () => {
                   <th>Chain</th>
                   <th>Balance</th>
                   <th>Tag</th>
-                  <th>Max Tokens</th>
                   <th>Current Tokens</th>
-                  <th>Sell Probability</th>
                   <th>Created</th>
                   <th>Actions</th>
                 </tr>
@@ -679,104 +691,112 @@ export const Wallets: React.FC = () => {
                         )}
                       </td>
                       <td>
-                        {wallet.tokenInfo ? (
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {wallet.tokenInfo.maxTokens}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td>
-                        {wallet.tokenInfo ? (
-                          <TokenProgressBar
-                            current={wallet.tokenInfo.currentTokenCount}
-                            max={wallet.tokenInfo.maxTokens}
-                            size="sm"
-                            showLabels={false}
-                            className="w-24"
-                          />
-                        ) : (
-                          <span className="text-xs text-gray-400">No data</span>
-                        )}
-                      </td>
-                      <td>
-                        {wallet.tokenInfo ? (
-                          <SellProbabilityBadge
-                            probability={wallet.tokenInfo.sellProbability}
-                            size="sm"
-                          />
-                        ) : (
-                          <span className="text-xs text-gray-400">-</span>
-                        )}
+                        {(() => {
+                          const bulkTokenCount = getTokenCountFromBulkData(wallet._id);
+                          const currentCount = bulkTokenCount !== null ? bulkTokenCount : wallet.tokenInfo?.currentTokenCount;
+                          const maxTokens = wallet.tokenInfo?.maxTokens;
+                          
+                          if (currentCount !== undefined && maxTokens) {
+                            return (
+                              <div className="flex items-center space-x-2">
+                                <TokenProgressBar
+                                  current={currentCount}
+                                  max={maxTokens}
+                                  size="sm"
+                                  showLabels={false}
+                                  className="w-20"
+                                />
+                                <span className="text-xs text-gray-600 dark:text-gray-400">
+                                  {currentCount}/{maxTokens}
+                                </span>
+                              </div>
+                            );
+                          } else if (currentCount !== undefined) {
+                            return (
+                              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {currentCount}
+                              </span>
+                            );
+                          } else {
+                            return <span className="text-xs text-gray-400">No data</span>;
+                          }
+                        })()}
                       </td>
                       <td>
                         <span className="text-sm text-gray-500 dark:text-gray-400">{formatDate(wallet.createdAt)}</span>
                       </td>
                       <td>
-                        <div className="flex items-center space-x-2">
-                          {wallet.status === WalletStatus.ACTIVE && (
-                            <Button
-                              variant="warning"
-                              size="sm"
-                              onClick={() => handleStatusUpdate(wallet._id, WalletStatus.PAUSED)}
-                              loading={updateStatusMutation.isPending}
-                            >
-                              <Pause className="w-3 h-3" />
-                            </Button>
-                          )}
+                        {(() => {
+                          const actions: ActionItem[] = [];
                           
-                          {wallet.status === WalletStatus.PAUSED && (
-                            <Button
-                              variant="success"
-                              size="sm"
-                              onClick={() => handleStatusUpdate(wallet._id, WalletStatus.ACTIVE)}
-                              loading={updateStatusMutation.isPending}
-                            >
-                              <Play className="w-3 h-3" />
-                            </Button>
-                          )}
+                          // Status actions
+                          if (wallet.status === WalletStatus.ACTIVE) {
+                            actions.push({
+                              id: 'pause',
+                              label: 'Pause Wallet',
+                              icon: <Pause className="w-4 h-4" />,
+                              onClick: () => handleStatusUpdate(wallet._id, WalletStatus.PAUSED),
+                              variant: 'warning',
+                              loading: updateStatusMutation.isPending,
+                              title: 'Pause this wallet'
+                            });
+                          }
                           
-                          {wallet.status !== WalletStatus.BANNED && wallet.status !== WalletStatus.ARCHIVED && (
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => handleStatusUpdate(wallet._id, WalletStatus.BANNED)}
-                              loading={updateStatusMutation.isPending}
-                            >
-                              <Ban className="w-3 h-3" />
-                            </Button>
-                          )}
+                          if (wallet.status === WalletStatus.PAUSED) {
+                            actions.push({
+                              id: 'activate',
+                              label: 'Activate Wallet',
+                              icon: <Play className="w-4 h-4" />,
+                              onClick: () => handleStatusUpdate(wallet._id, WalletStatus.ACTIVE),
+                              variant: 'success',
+                              loading: updateStatusMutation.isPending,
+                              title: 'Activate this wallet'
+                            });
+                          }
                           
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleForceUpdateBalance(wallet._id)}
-                            loading={updateSingleBalanceMutation.isPending}
-                            title="Force update wallet balance"
-                          >
-                            <RefreshCw className="w-3 h-3" />
-                          </Button>
+                          if (wallet.status !== WalletStatus.BANNED && wallet.status !== WalletStatus.ARCHIVED) {
+                            actions.push({
+                              id: 'ban',
+                              label: 'Ban Wallet',
+                              icon: <Ban className="w-4 h-4" />,
+                              onClick: () => handleStatusUpdate(wallet._id, WalletStatus.BANNED),
+                              variant: 'danger',
+                              loading: updateStatusMutation.isPending,
+                              title: 'Ban this wallet'
+                            });
+                          }
                           
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => refreshTokenCountMutation.mutate(wallet._id)}
-                            loading={refreshTokenCountMutation.isPending}
-                            title="Refresh token count"
-                          >
-                            <Coins className="w-3 h-3" />
-                          </Button>
+                          // Utility actions
+                          actions.push({
+                            id: 'refresh-balance',
+                            label: 'Update Balance',
+                            icon: <RefreshCw className="w-4 h-4" />,
+                            onClick: () => handleForceUpdateBalance(wallet._id),
+                            loading: updateSingleBalanceMutation.isPending,
+                            title: 'Force update wallet balance'
+                          });
                           
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleArchive(wallet._id)}
-                            loading={archiveMutation.isPending}
-                          >
-                            <Archive className="w-3 h-3" />
-                          </Button>
-                        </div>
+                          actions.push({
+                            id: 'refresh-tokens',
+                            label: 'Refresh Tokens',
+                            icon: <Coins className="w-4 h-4" />,
+                            onClick: () => refreshTokenCountMutation.mutate(wallet._id),
+                            loading: refreshTokenCountMutation.isPending,
+                            title: 'Refresh token count'
+                          });
+                          
+                          actions.push({
+                            id: 'archive',
+                            label: 'Archive Wallet',
+                            icon: <Archive className="w-4 h-4" />,
+                            onClick: () => handleArchive(wallet._id),
+                            variant: 'danger',
+                            loading: archiveMutation.isPending,
+                            title: 'Archive this wallet'
+                          });
+                          
+                          return <ActionsMenu actions={actions} />;
+                        })()}
                       </td>
                     </tr>
                   );
