@@ -45,7 +45,8 @@ import {
   Coins,
   Tag,
   Tags,
-  X
+  X,
+  Download
 } from 'lucide-react';
 
 // Import token components
@@ -110,6 +111,52 @@ export const Wallets: React.FC = () => {
     if (!bulkTokenHoldings?.wallets) return null;
     const bulkWallet = bulkTokenHoldings.wallets.find(w => w.id === walletId);
     return bulkWallet?.tokenHoldings.count || 0;
+  };
+
+  // CSV Export function
+  const handleExportCSV = () => {
+    if (selectedWallets.size === 0) {
+      toast.error('Please select wallets to export');
+      return;
+    }
+
+    // Get selected wallet data
+    const selectedWalletData = filteredWallets.filter(wallet => 
+      selectedWallets.has(wallet._id)
+    );
+
+    // Create CSV content
+    const csvHeaders = ['Public Key', 'Token Holdings'];
+    const csvRows = selectedWalletData.map(wallet => [
+      wallet.publicKey || wallet.address,
+      getTokenCountFromBulkData(wallet._id) !== null ? getTokenCountFromBulkData(wallet._id) : wallet.tokenInfo?.currentTokenCount || '0'
+    ]);
+
+    // Convert to CSV string
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map(row => 
+        row.map(cell => 
+          // Escape commas and quotes in CSV
+          typeof cell === 'string' && (cell.includes(',') || cell.includes('"')) 
+            ? `"${cell.replace(/"/g, '""')}"` 
+            : cell
+        ).join(',')
+      )
+    ].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `wallets_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success(`Exported ${selectedWallets.size} wallets to CSV`);
   };
   const refetch = showArchived ? refetchArchived : refetchActive;
 
@@ -326,13 +373,6 @@ export const Wallets: React.FC = () => {
           {!showStrategicGeneration && (
             <>
               <Button
-                variant="secondary"
-                onClick={() => setShowGenerateModal(true)}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Quick Generate
-              </Button>
-              <Button
                 variant="primary"
                 onClick={() => setShowStrategicGeneration(true)}
               >
@@ -355,17 +395,15 @@ export const Wallets: React.FC = () => {
                   </>
                 )}
               </Button>
-              <Button
-                variant="secondary"
-                onClick={handleForceUpdateAllBalances}
-                loading={updateAllBalancesMutation.isPending}
-                disabled={filteredWallets.length === 0}
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Force Update Balances
-              </Button>
               {selectedWallets.size > 0 && (
                 <>
+                  <Button
+                    variant="success"
+                    onClick={handleExportCSV}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export CSV ({selectedWallets.size})
+                  </Button>
                   <Button
                     variant="primary"
                     onClick={() => setShowBulkTagModal(true)}
