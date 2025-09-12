@@ -142,10 +142,6 @@ export class WarmupService {
     return response.data;
   }
 
-  // Get multi-chain statistics (new method)
-  static async getMultiChainStatistics() {
-    return MultiChainService.getMultiChainStatistics();
-  }
 
   // Delete warmup process
   static async deleteWarmupProcess(id: string): Promise<void> {
