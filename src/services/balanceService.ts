@@ -23,6 +23,21 @@ export interface ForceUpdateAllBalancesResponse {
   errors?: string[];
 }
 
+export interface BulkUpdateBalancesRequest {
+  walletIds: string[];
+  delayBetweenBatches?: number;
+  batchSize?: number;
+}
+
+export interface BulkUpdateBalancesResponse {
+  success: boolean;
+  message: string;
+  totalWalletsProcessed: number;
+  processedBatches: number;
+  averageTimePerBatch: number;
+  errors?: string[];
+}
+
 export interface BalanceSummary {
   totalWallets: number;
   totalFunded: string;
@@ -75,6 +90,14 @@ export class BalanceService {
   // Force update all wallet balances
   static async forceUpdateAllBalances(): Promise<ForceUpdateAllBalancesResponse> {
     const response = await api.post('/api/balance/force-update-all');
+    return response.data;
+  }
+
+  // Bulk update balances for selected wallets with rate limiting
+  static async bulkUpdateBalances(
+    request: BulkUpdateBalancesRequest
+  ): Promise<BulkUpdateBalancesResponse> {
+    const response = await api.post('/api/balance/bulk-update', request);
     return response.data;
   }
 }

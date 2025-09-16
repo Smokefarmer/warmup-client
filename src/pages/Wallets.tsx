@@ -22,7 +22,7 @@ import {
   useRemoveWalletTag,
   useBulkTokenHoldings
 } from '../hooks/useWallets';
-import { useForceUpdateAllBalances, useUpdateTotalFundedForWallet } from '../hooks/useBalance';
+import { useForceUpdateAllBalances, useUpdateTotalFundedForWallet, useBulkUpdateBalances } from '../hooks/useBalance';
 import { useMultiChain } from '../hooks/useMultiChain';
 import { WalletStatus, WalletType } from '../types/wallet';
 import { formatAddress, formatDate, formatWalletBalance } from '../utils/formatters';
@@ -101,6 +101,7 @@ export const Wallets: React.FC = () => {
   const archiveMutation = useArchiveWallet();
   const updateAllBalancesMutation = useForceUpdateAllBalances();
   const updateSingleBalanceMutation = useUpdateTotalFundedForWallet();
+  const bulkUpdateBalancesMutation = useBulkUpdateBalances();
 
   // Use the correct wallet data based on current view
   const wallets = showArchived ? archivedWallets : activeWallets;
@@ -245,6 +246,47 @@ export const Wallets: React.FC = () => {
     } catch (error) {
       console.error('Failed to update wallet balance:', error);
       toast.error('Failed to update wallet balance');
+    }
+  };
+
+  // Handle bulk balance update for selected wallets
+  const handleBulkUpdateBalances = async () => {
+    if (selectedWallets.size === 0) {
+      toast.error('Please select at least one wallet');
+      return;
+    }
+
+    const walletIds = Array.from(selectedWallets);
+    
+    try {
+      const result = await bulkUpdateBalancesMutation.mutateAsync({
+        walletIds,
+        delayBetweenBatches: 5000, // 5 seconds between batches to avoid rate limiting
+        batchSize: 5 // Process 5 wallets at a time
+      });
+      
+      // The result is now BulkUpdateBalancesResponse
+      if (result?.success) {
+        toast.success(
+          `Successfully updated balances for ${result.totalWalletsProcessed} wallets ` +
+          `in ${result.processedBatches} batches (avg ${result.averageTimePerBatch.toFixed(1)}s per batch)`
+        );
+        // Clear selection after successful update
+        setSelectedWallets(new Set());
+      } else if (result) {
+        toast.success(`Bulk balance update completed for ${walletIds.length} wallets`);
+        setSelectedWallets(new Set());
+      } else {
+        toast.success(`Balance update completed for ${walletIds.length} wallets`);
+        setSelectedWallets(new Set());
+      }
+      
+      if (import.meta.env.DEV) {
+        console.log('✅ Bulk updated balances:', result);
+      }
+    } catch (error) {
+      console.error('Failed to bulk update wallet balances:', error);
+      toast.error('Failed to update wallet balances');
     }
   };
 
@@ -403,6 +445,14 @@ export const Wallets: React.FC = () => {
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Export CSV ({selectedWallets.size})
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleBulkUpdateBalances}
+                    loading={bulkUpdateBalancesMutation.isPending}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Update Balance ({selectedWallets.size})
                   </Button>
                   <Button
                     variant="primary"

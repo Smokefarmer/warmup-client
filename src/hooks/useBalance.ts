@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { BalanceService, UpdateTotalFundedRequest } from '../services/balanceService';
+import { BalanceService, UpdateTotalFundedRequest, BulkUpdateBalancesRequest } from '../services/balanceService';
 import { walletKeys } from './useWallets';
 
 // Query keys for balance operations
@@ -56,6 +56,22 @@ export const useForceUpdateAllBalances = () => {
   
   return useMutation({
     mutationFn: () => BalanceService.forceUpdateAllBalances(),
+    onSuccess: () => {
+      // Invalidate all wallet data and balance summary to refresh the UI
+      queryClient.invalidateQueries({ queryKey: walletKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: walletKeys.details() });
+      queryClient.invalidateQueries({ queryKey: balanceKeys.summary() });
+    },
+  });
+};
+
+// Bulk update balances for selected wallets with rate limiting
+export const useBulkUpdateBalances = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (request: BulkUpdateBalancesRequest) => 
+      BalanceService.bulkUpdateBalances(request),
     onSuccess: () => {
       // Invalidate all wallet data and balance summary to refresh the UI
       queryClient.invalidateQueries({ queryKey: walletKeys.lists() });
