@@ -5,7 +5,8 @@ import { LoadingSpinner } from './common/LoadingSpinner';
 import { 
   useFunderInfoAll, 
   useFunderBalanceForChain,
-  useFunderStatus
+  useFunderStatus,
+  useCexBalance
 } from '../hooks/useFunding';
 import { ChainId } from '../types/wallet';
 import { 
@@ -41,6 +42,14 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
     refetch: refetchFallback
   } = useFunderStatus();
 
+  // Get CEX balance
+  const { 
+    data: cexBalance, 
+    isLoading: cexLoading, 
+    refetch: refetchCex,
+    error: cexError
+  } = useCexBalance();
+
   // Debug logging for API call
   React.useEffect(() => {
     console.log('🔍 MultiChainFunderStatusCard API Debug:', {
@@ -51,15 +60,19 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
       success: funderInfoAll?.success,
       funderInfo: funderInfoAll?.funderInfo,
       fallbackFunderStatus,
-      fallbackLoading
+      fallbackLoading,
+      cexBalance,
+      cexLoading,
+      cexError
     });
-  }, [funderInfoAll, allLoading, allError, fallbackFunderStatus, fallbackLoading]);
+  }, [funderInfoAll, allLoading, allError, fallbackFunderStatus, fallbackLoading, cexBalance, cexLoading, cexError]);
 
   const isLoading = allLoading || fallbackLoading;
 
   const handleRefresh = () => {
     refetchAll();
     refetchFallback();
+    refetchCex();
     onRefresh?.();
   };
 
@@ -149,7 +162,7 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Base Mainnet */}
           {baseInfo && (
             <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
@@ -251,6 +264,62 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
               </div>
             </div>
           )}
+
+          {/* CEX Balance */}
+          {cexBalance?.success && (
+            <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  <span className="font-medium">
+                    {cexBalance.exchange} CEX
+                  </span>
+                </div>
+                {getStatusIcon(cexBalance.total > 0)}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Status:</span>
+                  <span className={cexBalance.total > 0 ? 'text-green-600' : 'text-red-600'}>
+                    {cexBalance.total > 0 ? 'Available' : 'Empty'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Available:</span>
+                  <div className="flex items-center gap-1">
+                    <DollarSign className="w-3 h-3 text-green-500" />
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      {cexBalance.available.toFixed(6)} {cexBalance.currency}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Total:</span>
+                  <div className="flex items-center gap-1">
+                    <DollarSign className="w-3 h-3 text-blue-500" />
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      {cexBalance.total.toFixed(6)} {cexBalance.currency}
+                    </span>
+                  </div>
+                </div>
+
+                {cexBalance.frozen > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Frozen:</span>
+                    <div className="flex items-center gap-1">
+                      <DollarSign className="w-3 h-3 text-yellow-500" />
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {cexBalance.frozen.toFixed(6)} {cexBalance.currency}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-4 text-xs text-gray-500 text-center">
@@ -280,7 +349,7 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Base Mainnet - Using legacy data */}
           <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-3">
@@ -368,6 +437,62 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
               </div>
             </div>
           </div>
+
+          {/* CEX Balance */}
+          {cexBalance?.success && (
+            <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  <span className="font-medium">
+                    {cexBalance.exchange} CEX
+                  </span>
+                </div>
+                {getStatusIcon(cexBalance.total > 0)}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Status:</span>
+                  <span className={cexBalance.total > 0 ? 'text-green-600' : 'text-red-600'}>
+                    {cexBalance.total > 0 ? 'Available' : 'Empty'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Available:</span>
+                  <div className="flex items-center gap-1">
+                    <DollarSign className="w-3 h-3 text-green-500" />
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      {cexBalance.available.toFixed(6)} {cexBalance.currency}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Total:</span>
+                  <div className="flex items-center gap-1">
+                    <DollarSign className="w-3 h-3 text-blue-500" />
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      {cexBalance.total.toFixed(6)} {cexBalance.currency}
+                    </span>
+                  </div>
+                </div>
+
+                {cexBalance.frozen > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Frozen:</span>
+                    <div className="flex items-center gap-1">
+                      <DollarSign className="w-3 h-3 text-yellow-500" />
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {cexBalance.frozen.toFixed(6)} {cexBalance.currency}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 text-center">
@@ -396,7 +521,7 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Base Mainnet - Fallback */}
         <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-3">
@@ -474,6 +599,62 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
             </div>
           </div>
         </div>
+
+        {/* CEX Balance */}
+        {cexBalance?.success && (
+          <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4" />
+                <span className="font-medium">
+                  {cexBalance.exchange} CEX
+                </span>
+              </div>
+              {getStatusIcon(cexBalance.total > 0)}
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Status:</span>
+                <span className={cexBalance.total > 0 ? 'text-green-600' : 'text-red-600'}>
+                  {cexBalance.total > 0 ? 'Available' : 'Empty'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Available:</span>
+                <div className="flex items-center gap-1">
+                  <DollarSign className="w-3 h-3 text-green-500" />
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                    {cexBalance.available.toFixed(6)} {cexBalance.currency}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Total:</span>
+                <div className="flex items-center gap-1">
+                  <DollarSign className="w-3 h-3 text-blue-500" />
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                    {cexBalance.total.toFixed(6)} {cexBalance.currency}
+                  </span>
+                </div>
+              </div>
+
+              {cexBalance.frozen > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Frozen:</span>
+                  <div className="flex items-center gap-1">
+                    <DollarSign className="w-3 h-3 text-yellow-500" />
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      {cexBalance.frozen.toFixed(6)} {cexBalance.currency}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 text-center">

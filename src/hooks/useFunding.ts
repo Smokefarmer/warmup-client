@@ -14,7 +14,8 @@ import {
   Transaction,
   FundingWallet,
   SingleChainFunderInfo,
-  MultiChainFunderInfo
+  MultiChainFunderInfo,
+  CexBalance
 } from '../types/funding';
 
 // Query keys
@@ -25,6 +26,7 @@ export const fundingKeys = {
   funderBalance: () => [...fundingKeys.all, 'funder-balance'] as const,
   funderBalanceForChain: (chainId: number) => [...fundingKeys.all, 'funder-balance', chainId] as const,
   funderInfoAll: () => [...fundingKeys.all, 'funder-info-all'] as const,
+  cexBalance: () => [...fundingKeys.all, 'cex-balance'] as const,
   history: () => [...fundingKeys.all, 'history'] as const,
   historyList: (limit?: number, offset?: number) => [...fundingKeys.history(), { limit, offset }] as const,
   transaction: (id: string) => [...fundingKeys.all, 'transaction', id] as const,
@@ -76,6 +78,16 @@ export const useFunderInfoAll = () => {
   return useQuery({
     queryKey: fundingKeys.funderInfoAll(),
     queryFn: () => FundingService.getFunderInfoAll(),
+    refetchInterval: 30000, // 30 seconds
+    staleTime: 30000,
+  });
+};
+
+// Get CEX balance
+export const useCexBalance = () => {
+  return useQuery({
+    queryKey: fundingKeys.cexBalance(),
+    queryFn: () => FundingService.getCexBalance(),
     refetchInterval: 30000, // 30 seconds
     staleTime: 30000,
   });

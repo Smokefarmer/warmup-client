@@ -94,6 +94,7 @@ export const Wallets: React.FC = () => {
   const [selectedType, setSelectedType] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [minBalance, setMinBalance] = useState('');
+  const [maxBalance, setMaxBalance] = useState('');
   const [selectedTag, setSelectedTag] = useState('');
 
   const updateStatusMutation = useUpdateWalletStatus();
@@ -180,22 +181,28 @@ export const Wallets: React.FC = () => {
       wallet.status === selectedStatus || 
       wallet.status.toLowerCase() === selectedStatus.toLowerCase();
     
-    // Minimum balance filter - convert wallet balance to SOL for comparison
+    // Balance filters - convert wallet balance to SOL for comparison
+    const walletBalanceInSOL = (() => {
+      const { decimals } = wallet.chainId === 101 ? { decimals: 9 } : { decimals: 18 };
+      return parseFloat(wallet.nativeTokenBalance || '0') / Math.pow(10, decimals);
+    })();
+    
     const matchesMinBalance = !minBalance || (() => {
       const minBalanceValue = parseFloat(minBalance);
       if (isNaN(minBalanceValue)) return true;
-      
-      // Convert wallet balance to SOL (assuming 9 decimals for lamports)
-      const { decimals } = wallet.chainId === 101 ? { decimals: 9 } : { decimals: 18 };
-      const walletBalanceInSOL = parseFloat(wallet.nativeTokenBalance || '0') / Math.pow(10, decimals);
-      
       return walletBalanceInSOL >= minBalanceValue;
+    })();
+    
+    const matchesMaxBalance = !maxBalance || (() => {
+      const maxBalanceValue = parseFloat(maxBalance);
+      if (isNaN(maxBalanceValue)) return true;
+      return walletBalanceInSOL <= maxBalanceValue;
     })();
     
     const matchesTag = !selectedTag || 
       (selectedTag === 'no-tag' ? !wallet.tag : wallet.tag === selectedTag);
     
-    return matchesSearch && matchesType && matchesStatus && matchesMinBalance && matchesTag;
+    return matchesSearch && matchesType && matchesStatus && matchesMinBalance && matchesMaxBalance && matchesTag;
   });
 
   // Debug logging to see what wallet data we have
@@ -504,7 +511,7 @@ export const Wallets: React.FC = () => {
       {/* Filters */}
       {!showStrategicGeneration && (
         <Card>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
               <div className="relative">
@@ -557,6 +564,19 @@ export const Wallets: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 value={minBalance}
                 onChange={(e) => setMinBalance(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Balance (SOL)</label>
+              <input
+                type="number"
+                step="0.001"
+                min="0"
+                placeholder="1.0"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                value={maxBalance}
+                onChange={(e) => setMaxBalance(e.target.value)}
               />
             </div>
 

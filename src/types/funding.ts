@@ -42,6 +42,17 @@ export interface SingleChainFunderInfo {
   lastUpdated: string;
 }
 
+// CEX balance information
+export interface CexBalance {
+  success: boolean;
+  exchange: string;
+  currency: string;
+  available: number;
+  frozen: number;
+  total: number;
+  timestamp: string;
+}
+
 export interface IFundingTransaction {
   id: string;
   fromAddress: string;

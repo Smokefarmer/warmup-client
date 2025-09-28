@@ -12,7 +12,8 @@ import {
   Transaction,
   FundingWallet,
   SingleChainFunderInfo,
-  MultiChainFunderInfo
+  MultiChainFunderInfo,
+  CexBalance
 } from '../types/funding';
 
 // API Base URL and endpoints - Updated to match actual backend
@@ -30,6 +31,7 @@ const ENDPOINTS = {
   funderInfo: '/api/balance/funder',
   funderInfoAll: '/api/balance/funder/all',
   walletBalance: (id: string) => `/api/balance/wallet/${id}`,
+  cexBalance: '/api/funding/cex/balance',
   
   // History and statistics endpoints
   history: '/api/funding/history',
@@ -108,6 +110,12 @@ export class FundingService {
   // Get funder information for all supported chains
   static async getFunderInfoAll(): Promise<MultiChainFunderInfo> {
     const response = await api.get(ENDPOINTS.funderInfoAll);
+    return response.data;
+  }
+
+  // Get CEX balance
+  static async getCexBalance(): Promise<CexBalance> {
+    const response = await api.get(ENDPOINTS.cexBalance);
     return response.data;
   }
 
