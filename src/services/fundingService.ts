@@ -52,8 +52,9 @@ export class FundingService {
   }
 
   // Get enhanced funder status for dashboard
-  static async getFunderStatus(): Promise<FunderStatus> {
-    const response = await api.get(ENDPOINTS.status);
+  static async getFunderStatus(chainId?: number): Promise<FunderStatus> {
+    const params = chainId ? `?chainId=${chainId}` : '';
+    const response = await api.get(`${ENDPOINTS.status}${params}`);
     return response.data;
   }
 
@@ -72,14 +73,23 @@ export class FundingService {
   }
 
   // Batch funding (same amount)
-  static async fundWalletsBatch(params: BatchFundingDto): Promise<FundingResult> {
+  static async fundWalletsBatch(params: BatchFundingDto & { chainId?: number }): Promise<FundingResult> {
     const response = await api.post(ENDPOINTS.fundWallets, params);
     return response.data;
   }
 
   // Random batch funding
-  static async fundWalletsRandom(params: RandomBatchFundingDto): Promise<FundingResult> {
+  static async fundWalletsRandom(params: RandomBatchFundingDto & { chainId?: number }): Promise<FundingResult> {
     const response = await api.post(ENDPOINTS.fundWalletsRandom, params);
+    return response.data;
+  }
+
+  // Fund selected wallets with chain support
+  static async fundSelectedWallets(walletIds: string[], chainId?: number): Promise<FundingResult> {
+    const response = await api.post('/api/funding/selected-wallets', {
+      walletIds,
+      chainId
+    });
     return response.data;
   }
 
@@ -114,8 +124,9 @@ export class FundingService {
   }
 
   // Get CEX balance
-  static async getCexBalance(): Promise<CexBalance> {
-    const response = await api.get(ENDPOINTS.cexBalance);
+  static async getCexBalance(chainId?: number): Promise<CexBalance> {
+    const params = chainId ? `?chainId=${chainId}` : '';
+    const response = await api.get(`${ENDPOINTS.cexBalance}${params}`);
     return response.data;
   }
 

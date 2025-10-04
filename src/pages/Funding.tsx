@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
+import { ChainSelector } from '../components/common/ChainSelector';
 import { MultiChainFunderStatusCard } from '../components/MultiChainFunderStatusCard';
 import { VirtualWalletList } from '../components/VirtualWalletList';
 import { useFunderStatus, useFunderInfoAll } from '../hooks/useFunding';
 import { useWallets, useSellAllTokens, useSendBackToFunder } from '../hooks/useWallets';
 import { useMultiChain } from '../hooks/useMultiChain';
+import { useChain, useChainListener } from '../contexts/ChainContext';
 import { WalletService } from '../services/walletService';
+import { FundingService } from '../services/fundingService';
 import { WalletStatus, WalletType } from '../types/wallet';
 import { formatAddress, formatWalletBalance } from '../utils/formatters';
 import { isValidSolanaAddress, convertHexToBase58 } from '../utils/validators';
@@ -29,6 +32,7 @@ import {
 } from 'lucide-react';
 
 export const Funding: React.FC = () => {
+  const { selectedChain } = useChain();
   const { data: funderStatus, refetch: refetchFunder } = useFunderStatus();
   const { data: funderInfoAll } = useFunderInfoAll();
   const { data: wallets = [], isLoading: walletsLoading, refetch: refetchWallets } = useWallets();
@@ -43,11 +47,22 @@ export const Funding: React.FC = () => {
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedChain, setSelectedChain] = useState('');
+  const [filterChain, setFilterChain] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedTag, setSelectedTag] = useState('');
   const [showOnlyZeroBalance, setShowOnlyZeroBalance] = useState(false);
+
+  // Filter wallets by selected chain
+  const chainFilteredWallets = React.useMemo(() => {
+    return wallets.filter(wallet => wallet.chainId === selectedChain.id);
+  }, [wallets, selectedChain.id]);
+
+  // Refresh wallets when chain changes
+  useChainListener((chainId) => {
+    refetchWallets();
+    setSelectedWallets(new Set()); // Clear selection when chain changes
+  });
   const [showOnlyWithBalance, setShowOnlyWithBalance] = useState(false);
   
   // Funding configuration states
@@ -164,7 +179,7 @@ export const Funding: React.FC = () => {
   )).sort();
 
   // Filter available wallets with all filters applied
-  const availableWallets = wallets.filter(wallet => {
+  const availableWallets = chainFilteredWallets.filter(wallet => {
     // Base filter: exclude only archived wallets (handle both uppercase and lowercase)
     const isArchived = wallet.status === WalletStatus.ARCHIVED;
     if (isArchived) return false;
@@ -175,8 +190,8 @@ export const Funding: React.FC = () => {
       wallet.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (wallet.tag && wallet.tag.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    // Chain filter
-    const matchesChain = !selectedChain || wallet.chainId === parseInt(selectedChain);
+    // Additional chain filter (for backward compatibility with existing filter UI)
+    const matchesChain = !filterChain || wallet.chainId === parseInt(filterChain);
 
     // Type filter
     const matchesType = !selectedType || wallet.type === selectedType;
@@ -262,16 +277,12 @@ export const Funding: React.FC = () => {
       const walletIds = Array.from(selectedWallets);
       const amounts = getFundingAmounts(); // This handles both FIXED and RANDOM modes
       
-      const result = await WalletService.quickFundSelectedWallets(
-        walletIds,
-        amounts,
-        method,
-        false
-      );
+      // Use chain-aware funding service
+      const result = await FundingService.fundSelectedWallets(walletIds, selectedChain.id);
       
       if (result.success) {
         const totalAmount = amounts.reduce((sum, amt) => sum + amt, 0);
-        toast.success(`✅ ${method} funded ${walletIds.length} wallets with ${totalAmount.toFixed(3)} SOL total`);
+        toast.success(`✅ ${method} funded ${walletIds.length} wallets with ${totalAmount.toFixed(3)} ${selectedChain.symbol} total`);
         // Clear selection and refresh wallet balances
         setSelectedWallets(new Set());
         refetchWallets();
@@ -310,8 +321,7 @@ export const Funding: React.FC = () => {
         walletIds,
         amounts,
         cexPercent,
-        useStealthTransfers,
-        { min: 3, max: 7 }
+        useStealthTransfers
       );
       
       if (!planResult.success) {
@@ -581,9 +591,17 @@ export const Funding: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Funding System</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Funding System</h1>
+            <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full">
+              <span className="text-lg">{selectedChain.icon}</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {selectedChain.name}
+              </span>
+            </div>
+          </div>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Select wallets and fund them with CLI-style options
+            Fund {selectedChain.name} wallets with {selectedChain.symbol} • {chainFilteredWallets.length} wallets available
           </p>
         </div>
         <div className="flex items-center space-x-2">

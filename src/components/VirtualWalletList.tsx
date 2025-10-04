@@ -120,7 +120,7 @@ export const VirtualWalletList: React.FC<VirtualWalletListProps> = ({
                         </div>
                       )}
                       <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {formatWalletBalance(BigInt(wallet.totalFunded || '0'), wallet.chainId)}
+                        {formatWalletBalance(wallet.totalFunded || '0', wallet.chainId)}
                       </span>
                       <span className="text-sm text-gray-600 dark:text-gray-400">
                         {wallet.buyTxCount + wallet.sellTxCount} tx

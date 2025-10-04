@@ -9,6 +9,7 @@ import { ProtectedTokens } from './pages/ProtectedTokens';
 import { Login } from './pages/Login';
 import { ToastProvider } from './components/ToastProvider';
 import { AuthProvider } from './contexts/AuthContext';
+import { ChainProvider } from './contexts/ChainContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { 
   LayoutDashboard, 
@@ -23,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { DarkModeToggle } from './components/common/DarkModeToggle';
+import { ChainSelector } from './components/common/ChainSelector';
 import { useAuth } from './contexts/AuthContext';
 
 // Create a client
@@ -84,6 +86,12 @@ const Navigation: React.FC = () => {
               </button>
             </div>
           </div>
+          <div className="px-2 py-4">
+            <div className="mb-4">
+              <ChainSelector />
+            </div>
+          </div>
+          
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item) => {
               const Icon = item.icon;
@@ -145,6 +153,12 @@ const Navigation: React.FC = () => {
             </div>
             <DarkModeToggle />
           </div>
+          <div className="px-2 py-4">
+            <div className="mb-4">
+              <ChainSelector />
+            </div>
+          </div>
+          
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item) => {
               const Icon = item.icon;
@@ -203,6 +217,7 @@ const Navigation: React.FC = () => {
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">ATH Warmup Tool</h1>
           </div>
           <div className="flex items-center space-x-2">
+            <ChainSelector compact />
             <DarkModeToggle />
             <button
               onClick={() => setSidebarOpen(true)}
@@ -232,7 +247,8 @@ const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <Router>
         <AuthProvider>
-          <ToastProvider>
+          <ChainProvider>
+            <ToastProvider>
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
@@ -261,7 +277,8 @@ const App: React.FC = () => {
                 </ProtectedRoute>
               } />
             </Routes>
-          </ToastProvider>
+            </ToastProvider>
+          </ChainProvider>
         </AuthProvider>
       </Router>
     </QueryClientProvider>

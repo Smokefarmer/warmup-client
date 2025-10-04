@@ -1,38 +1,86 @@
 // Chain configuration constants matching the backend guide
 export const CHAINS = {
-  // EVM Chains
+  // Supported chains for multi-chain warmup
+  SOLANA: 101,           // Solana Mainnet
+  BSC: 56,              // BNB Smart Chain
+  
+  // Legacy/Additional chains
   BASE_MAINNET: 8453,
   BASE_SEPOLIA: 84532,
   ETHEREUM_MAINNET: 1,
   POLYGON_MAINNET: 137,
-  
-  // Solana Clusters
-  SOLANA_MAINNET: 101,
   SOLANA_DEVNET: 102,
   SOLANA_TESTNET: 103
 };
 
+// Supported chains configuration for multi-chain warmup
+export const SUPPORTED_CHAINS = {
+  SOLANA: {
+    id: 101,
+    name: 'Solana Mainnet',
+    symbol: 'SOL',
+    decimals: 9,
+    color: '#00D4AA',
+    icon: '🌞',
+    type: 'SOLANA'
+  },
+  BSC: {
+    id: 56, 
+    name: 'BNB Smart Chain',
+    symbol: 'BNB',
+    decimals: 18,
+    color: '#F3BA2F',
+    icon: '🔶',
+    type: 'EVM'
+  }
+};
+
+export const DEFAULT_CHAIN = SUPPORTED_CHAINS.SOLANA;
+
 export const CHAIN_NAMES = {
+  // Supported multi-chain
+  [CHAINS.SOLANA]: 'Solana',
+  [CHAINS.BSC]: 'BNB Smart Chain',
+  
+  // Legacy chains
   [CHAINS.BASE_MAINNET]: 'Base Mainnet',
   [CHAINS.BASE_SEPOLIA]: 'Base Sepolia',
   [CHAINS.ETHEREUM_MAINNET]: 'Ethereum Mainnet',
   [CHAINS.POLYGON_MAINNET]: 'Polygon Mainnet',
-  [CHAINS.SOLANA_MAINNET]: 'Solana Mainnet',
   [CHAINS.SOLANA_DEVNET]: 'Solana Devnet',
   [CHAINS.SOLANA_TESTNET]: 'Solana Testnet'
 };
 
 export const CHAIN_TYPES = {
+  // Supported multi-chain
+  [CHAINS.SOLANA]: 'SOLANA',
+  [CHAINS.BSC]: 'EVM',
+  
+  // Legacy chains
   [CHAINS.BASE_MAINNET]: 'EVM',
   [CHAINS.BASE_SEPOLIA]: 'EVM',
   [CHAINS.ETHEREUM_MAINNET]: 'EVM',
   [CHAINS.POLYGON_MAINNET]: 'EVM',
-  [CHAINS.SOLANA_MAINNET]: 'SOLANA',
   [CHAINS.SOLANA_DEVNET]: 'SOLANA',
   [CHAINS.SOLANA_TESTNET]: 'SOLANA'
 };
 
 export const CHAIN_EXPLORERS = {
+  // Supported multi-chain
+  [CHAINS.SOLANA]: {
+    name: 'Solana Explorer',
+    url: 'https://explorer.solana.com',
+    addressPath: '/address/',
+    txPath: '/tx/'
+  },
+  [CHAINS.BSC]: {
+    name: 'BscScan',
+    url: 'https://bscscan.com',
+    addressPath: '/address/',
+    txPath: '/tx/'
+  },
+  
+  // Legacy chains
   [CHAINS.BASE_MAINNET]: {
     name: 'Basescan',
     url: 'https://basescan.org',
@@ -57,12 +105,6 @@ export const CHAIN_EXPLORERS = {
     addressPath: '/address/',
     txPath: '/tx/'
   },
-  [CHAINS.SOLANA_MAINNET]: {
-    name: 'Solana Explorer',
-    url: 'https://explorer.solana.com',
-    addressPath: '/address/',
-    txPath: '/tx/'
-  },
   [CHAINS.SOLANA_DEVNET]: {
     name: 'Solana Devnet',
     url: 'https://explorer.solana.com',
@@ -78,21 +120,29 @@ export const CHAIN_EXPLORERS = {
 };
 
 export const CHAIN_DECIMALS = {
+  // Supported multi-chain
+  [CHAINS.SOLANA]: 9,
+  [CHAINS.BSC]: 18,
+  
+  // Legacy chains
   [CHAINS.BASE_MAINNET]: 18,
   [CHAINS.BASE_SEPOLIA]: 18,
   [CHAINS.ETHEREUM_MAINNET]: 18,
   [CHAINS.POLYGON_MAINNET]: 18,
-  [CHAINS.SOLANA_MAINNET]: 9,
   [CHAINS.SOLANA_DEVNET]: 9,
   [CHAINS.SOLANA_TESTNET]: 9
 };
 
 export const CHAIN_SYMBOLS = {
+  // Supported multi-chain
+  [CHAINS.SOLANA]: 'SOL',
+  [CHAINS.BSC]: 'BNB',
+  
+  // Legacy chains
   [CHAINS.BASE_MAINNET]: 'ETH',
   [CHAINS.BASE_SEPOLIA]: 'ETH',
   [CHAINS.ETHEREUM_MAINNET]: 'ETH',
   [CHAINS.POLYGON_MAINNET]: 'MATIC',
-  [CHAINS.SOLANA_MAINNET]: 'SOL',
   [CHAINS.SOLANA_DEVNET]: 'SOL',
   [CHAINS.SOLANA_TESTNET]: 'SOL'
 };
@@ -144,4 +194,38 @@ export const getExplorerUrl = (chainId: number, address: string, isTransaction: 
   
   const path = isTransaction ? explorer.txPath : explorer.addressPath;
   return `${explorer.url}${path}${address}`;
+};
+
+// Multi-chain specific helpers
+export const getSupportedChains = () => {
+  return Object.values(SUPPORTED_CHAINS);
+};
+
+export const getSupportedChainIds = () => {
+  return Object.values(SUPPORTED_CHAINS).map(chain => chain.id);
+};
+
+export const getSupportedChainById = (chainId: number) => {
+  return Object.values(SUPPORTED_CHAINS).find(chain => chain.id === chainId);
+};
+
+export const isChainSupported = (chainId: number): boolean => {
+  return getSupportedChainIds().includes(chainId);
+};
+
+// Chain-specific strategy mapping
+export const CHAIN_STRATEGIES = {
+  [CHAINS.SOLANA]: ['Holder', 'MajorTrader', 'TrendTrader', 'Trencher'], // Solana
+  [CHAINS.BSC]: ['BNBHolder', 'BNBTrendTrader', 'BNBTrencher'] // BNB Smart Chain
+};
+
+export const getStrategiesForChain = (chainId: number): string[] => {
+  return CHAIN_STRATEGIES[chainId] || [];
+};
+
+// Chain error messages
+export const CHAIN_ERRORS = {
+  UNSUPPORTED_CHAIN: 'Selected chain is not supported',
+  INSUFFICIENT_FUNDS: (chain: string) => `Insufficient ${chain} balance`,
+  CHAIN_MISMATCH: 'Wallet chain does not match selected chain'
 };

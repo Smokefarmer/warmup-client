@@ -58,6 +58,18 @@ export class MultiChainService {
       explorerUrl: 'https://basescan.org',
       isTestnet: false
     },
+    [ChainId.BSC]: {
+      chainId: ChainId.BSC,
+      name: 'BNB Smart Chain',
+      nativeCurrency: {
+        name: 'BNB',
+        symbol: 'BNB',
+        decimals: 18
+      },
+      rpcUrl: 'https://bsc-dataseed.binance.org',
+      explorerUrl: 'https://bscscan.com',
+      isTestnet: false
+    },
     [ChainId.SOLANA]: {
       chainId: ChainId.SOLANA,
       name: 'Solana',

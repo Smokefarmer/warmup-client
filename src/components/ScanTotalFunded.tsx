@@ -427,12 +427,12 @@ export const ScanTotalFunded: React.FC = () => {
                     </td>
                     <td>
                       <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {formatWalletBalance(BigInt(wallet.totalFunded || '0'), wallet.chainId)}
+                        {formatWalletBalance(wallet.totalFunded || '0', wallet.chainId)}
                       </span>
                     </td>
                     <td>
                       <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {formatWalletBalance(BigInt(wallet.nativeTokenBalance || '0'), wallet.chainId)}
+                        {formatWalletBalance(wallet.nativeTokenBalance || '0', wallet.chainId)}
                       </span>
                     </td>
                     <td>

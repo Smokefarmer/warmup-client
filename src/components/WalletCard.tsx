@@ -86,7 +86,7 @@ export const WalletCard: React.FC<WalletCardProps> = ({
         <div className="flex justify-between items-center">
           <span className="text-xs text-gray-500 dark:text-gray-400">Balance:</span>
           <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {formatWalletBalance(BigInt(wallet.nativeTokenBalance || '0'), wallet.chainId)}
+            {formatWalletBalance(wallet.nativeTokenBalance || '0', wallet.chainId)}
           </span>
         </div>
 

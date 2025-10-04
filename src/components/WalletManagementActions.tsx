@@ -6,6 +6,7 @@ import { useSellAllTokens, useSendBackToFunder } from '../hooks/useWallets';
 import { useFunderStatus, useFunderInfoAll } from '../hooks/useFunding';
 import { IWallet } from '../types/wallet';
 import { isValidSolanaAddress, convertHexToBase58 } from '../utils/validators';
+import { safeToBigInt } from '../utils/formatters';
 import { RefreshCw, DollarSign } from 'lucide-react';
 
 interface WalletManagementActionsProps {
@@ -31,7 +32,7 @@ export const WalletManagementActions: React.FC<WalletManagementActionsProps> = (
   const { data: funderStatus } = useFunderStatus();
   const { data: funderInfoAll } = useFunderInfoAll();
 
-  const hasBalance = wallet.nativeTokenBalance && BigInt(wallet.nativeTokenBalance) > 0;
+  const hasBalance = wallet.nativeTokenBalance && safeToBigInt(wallet.nativeTokenBalance) > 0;
   
   // Try to get funder address from multiple sources
   const getFunderAddress = () => {

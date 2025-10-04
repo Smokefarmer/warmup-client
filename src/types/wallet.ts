@@ -23,6 +23,7 @@ export enum WarmupStatus {
 // Chain identifiers
 export enum ChainId {
   BASE = 8453,
+  BSC = 56,
   SOLANA = 101,
   SOLANA_MAINNET = 101,
   SOLANA_DEVNET = 102,

@@ -5,9 +5,11 @@ import { MultiChainService } from './multiChainService';
 // Strategic wallet generation types
 export interface StrategicWalletGenerationConfig {
   count: number;
-  planName: string;
+  chainId: number;
+  tag?: string; // Optional, not sent to backend
+  strategy?: string; // Optional, for internal use
   walletTypeDistribution: Array<{
-    type: 'TrendTrader' | 'MajorTrader' | 'Holder' | 'Trencher';
+    type: string;
     count: number;
   }>;
   withDelays?: boolean;
@@ -35,9 +37,10 @@ export interface JobStatus {
 
 export class WalletService {
   // Get all wallets
-  static async getWallets(): Promise<IWallet[]> {
+  static async getWallets(chainId?: number): Promise<IWallet[]> {
     try {
-      const response = await api.get('/api/wallets');
+      const params = chainId ? `?chainId=${chainId}` : '';
+      const response = await api.get(`/api/wallets${params}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching wallets:', error);
@@ -46,9 +49,10 @@ export class WalletService {
   }
 
   // Get available wallets (not in any process)
-  static async getAvailableWallets(): Promise<IWallet[]> {
+  static async getAvailableWallets(chainId?: number): Promise<IWallet[]> {
     try {
-      const response = await api.get('/api/wallets/available');
+      const params = chainId ? `?chainId=${chainId}` : '';
+      const response = await api.get(`/api/wallets/available${params}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching available wallets:', error);
@@ -184,7 +188,32 @@ export class WalletService {
   // Strategic wallet generation
   static async generateStrategicWallets(config: StrategicWalletGenerationConfig): Promise<{ jobId: string }> {
     try {
-      const response = await api.post('/api/strategic-wallets/generate', config);
+      // Prepare payload with intelligent delays
+      // Filter out wallet types with 0 count (backend validation requirement)
+      const filteredDistribution = config.walletTypeDistribution.filter(item => item.count > 0);
+      
+      const payload: any = {
+        count: config.count,
+        chainId: config.chainId,
+        walletTypeDistribution: filteredDistribution
+      };
+
+      // Include intelligent delays if enabled
+      if (config.withDelays && config.delayConfig) {
+        payload.withDelays = true;
+        payload.delayConfig = {
+          minMs: config.delayConfig.minMs,
+          maxMs: config.delayConfig.maxMs
+        };
+      }
+
+      // Include plan name if provided
+      if (config.tag) {
+        payload.planName = config.tag;
+      }
+
+      // Use the correct strategic wallet generation endpoint
+      const response = await api.post('/api/strategic-wallets/generate', payload);
       return response.data;
     } catch (error) {
       console.error('Error generating strategic wallets:', error);
@@ -241,8 +270,7 @@ export class WalletService {
     selectedWalletIds: string[],
     fundingAmounts: number[],
     cexFundingPercent: number,
-    useStealthTransfers: boolean,
-    masterWalletCapacity: { min: number; max: number }
+    useStealthTransfers: boolean
   ): Promise<{ success: boolean; data: { planId: string } }> {
     try {
       const response = await api.post('/api/selected-wallet-funding/plans', {
@@ -250,8 +278,7 @@ export class WalletService {
         selectedWalletIds,
         fundingAmounts,
         cexFundingPercent,
-        useStealthTransfers,
-        masterWalletCapacity
+        useStealthTransfers
       });
       return response.data;
     } catch (error) {

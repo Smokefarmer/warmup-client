@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { Card } from './common/Card';
 import { Button } from './common/Button';
+import { ChainSelector } from './common/ChainSelector';
 import { WalletService, StrategicWalletGenerationConfig } from '../services/walletService';
+import { useChain } from '../contexts/ChainContext';
+import { getStrategiesForChain, CHAINS } from '../config/chains';
 import { 
   Target, 
   Plus, 
@@ -10,36 +13,81 @@ import {
   Settings, 
   ChevronDown, 
   ChevronUp,
-  Zap
+  Zap,
+  Network
 } from 'lucide-react';
 
 interface StrategicWalletGeneratorProps {
   onJobStarted?: (jobId: string) => void;
 }
 
-const WALLET_TYPES = [
-  { value: 'TrendTrader', label: 'Trend Trader', description: 'Follows market trends' },
-  { value: 'MajorTrader', label: 'Major Trader', description: 'High volume trading' },
-  { value: 'Holder', label: 'Holder', description: 'Long-term holding strategy' },
-  { value: 'Trencher', label: 'Trencher', description: 'Opportunistic trading' },
-] as const;
+// Dynamic wallet types based on chain
+const getWalletTypesForChain = (chainId: number) => {
+  const strategies = getStrategiesForChain(chainId);
+  
+  const typeDescriptions: Record<string, { label: string; description: string; risk?: string }> = {
+    'Holder': { label: 'Holder', description: 'Conservative SOL token holding', risk: 'LOW' },
+    'MajorTrader': { label: 'Major Trader', description: 'Major token trading', risk: 'MEDIUM' },
+    'TrendTrader': { label: 'Trend Trader', description: 'Trend following strategy', risk: 'HIGH' },
+    'Trencher': { label: 'Trencher', description: 'Pump.fun meme token trenching', risk: 'EXTREME' },
+    'BNBHolder': { label: 'BNB Holder', description: 'Conservative BNB token holding strategy', risk: 'LOW' },
+    'BNBTrendTrader': { label: 'BNB Trend Trader', description: 'Aggressive BNB trend following strategy', risk: 'HIGH' },
+    'BNBTrencher': { label: 'BNB Trencher (Four.Meme)', description: 'Four.Meme meme token trenching - HIGHEST RISK ⚠️', risk: 'EXTREME' },
+  };
+  
+  return strategies.map(strategy => ({
+    value: strategy,
+    label: typeDescriptions[strategy]?.label || strategy,
+    description: typeDescriptions[strategy]?.description || `${strategy} strategy`
+  }));
+};
 
 export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> = ({
   onJobStarted
 }) => {
-  const [totalWallets, setTotalWallets] = useState(40);
+  const { selectedChain } = useChain();
+  const [totalWallets, setTotalWallets] = useState(50);
   const [planName, setPlanName] = useState('');
-  const [distribution, setDistribution] = useState([
-    { type: 'TrendTrader' as const, count: 10 },
-    { type: 'MajorTrader' as const, count: 10 },
-    { type: 'Holder' as const, count: 10 },
-    { type: 'Trencher' as const, count: 10 },
-  ]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [enableDelays, setEnableDelays] = useState(true);
   const [minDelayMinutes, setMinDelayMinutes] = useState(1); // Store in minutes for UI
   const [maxDelayMinutes, setMaxDelayMinutes] = useState(3); // Store in minutes for UI
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Get available wallet types for current chain
+  const availableWalletTypes = getWalletTypesForChain(selectedChain.id);
+  
+  // Initialize distribution based on selected chain
+  const getInitialDistribution = () => {
+    const types = getWalletTypesForChain(selectedChain.id);
+    
+    if (totalWallets < types.length) {
+      // If we have fewer wallets than types, only include types that get wallets
+      return types.slice(0, totalWallets).map((type) => ({
+        type: type.value,
+        count: 1
+      }));
+    } else {
+      // Normal distribution - ensure each type gets at least 1
+      const countPerType = Math.floor(totalWallets / types.length);
+      const remainder = totalWallets % types.length;
+      
+      return types.map((type, index) => ({
+        type: type.value,
+        count: Math.max(1, countPerType + (index < remainder ? 1 : 0))
+      }));
+    }
+  };
+  
+  const [distribution, setDistribution] = useState(() => getInitialDistribution());
+
+  // Update distribution when chain changes
+  React.useEffect(() => {
+    setDistribution(getInitialDistribution());
+    // Reset plan name with chain-specific prefix
+    const chainPrefix = selectedChain.symbol === 'SOL' ? 'SOL' : 'BNB';
+    setPlanName(`${chainPrefix}_Strategic_${Date.now().toString().slice(-6)}`);
+  }, [selectedChain.id, totalWallets]);
 
   // Update distribution when total wallets change
   const handleTotalWalletsChange = (newTotal: number) => {
@@ -94,7 +142,7 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
   };
 
   const addWalletType = () => {
-    const availableTypes = WALLET_TYPES.filter(
+    const availableTypes = availableWalletTypes.filter(
       type => !distribution.some(d => d.type === type.value)
     );
     
@@ -118,15 +166,25 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
 
   // Auto-distribute wallets evenly across all types
   const autoDistribute = () => {
-    const perType = Math.floor(totalWallets / distribution.length);
-    const remainder = totalWallets % distribution.length;
-    
-    const newDistribution = distribution.map((item, index) => ({
-      ...item,
-      count: perType + (index < remainder ? 1 : 0)
-    }));
-    
-    setDistribution(newDistribution);
+    if (totalWallets < distribution.length) {
+      // If we have fewer wallets than types, give 1 to each type up to totalWallets
+      const newDistribution = distribution.map((item, index) => ({
+        ...item,
+        count: index < totalWallets ? 1 : 0
+      }));
+      setDistribution(newDistribution.filter(item => item.count > 0));
+    } else {
+      // Normal distribution - ensure each type gets at least 1
+      const perType = Math.floor(totalWallets / distribution.length);
+      const remainder = totalWallets % distribution.length;
+      
+      const newDistribution = distribution.map((item, index) => ({
+        ...item,
+        count: Math.max(1, perType + (index < remainder ? 1 : 0))
+      }));
+      
+      setDistribution(newDistribution);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -143,12 +201,21 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
       return;
     }
 
+    // Check that all wallet types have at least 1 wallet
+    const invalidTypes = distribution.filter(item => item.count <= 0);
+    if (invalidTypes.length > 0) {
+      toast.error(`All wallet types must have at least 1 wallet. Please adjust the distribution.`);
+      return;
+    }
+
     setIsGenerating(true);
 
     try {
       const config: StrategicWalletGenerationConfig = {
         count: totalWallets,
-        planName: planName.trim(),
+        chainId: selectedChain.id,
+        tag: planName.trim(),
+        strategy: distribution.length === 1 ? distribution[0].type : 'Mixed',
         walletTypeDistribution: distribution,
         withDelays: enableDelays,
         delayConfig: enableDelays ? {
@@ -162,14 +229,10 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
       toast.success(`Strategic wallet generation started! Job ID: ${result.jobId}`);
       
       // Reset form
-      setPlanName('');
-      setTotalWallets(40);
-      setDistribution([
-        { type: 'TrendTrader', count: 10 },
-        { type: 'MajorTrader', count: 10 },
-        { type: 'Holder', count: 10 },
-        { type: 'Trencher', count: 10 },
-      ]);
+      const chainPrefix = selectedChain.symbol === 'SOL' ? 'SOL' : 'BNB';
+      setPlanName(`${chainPrefix}_Strategic_${Date.now().toString().slice(-6)}`);
+      setTotalWallets(50);
+      setDistribution(getInitialDistribution());
       
       // Notify parent component
       onJobStarted?.(result.jobId);
@@ -183,15 +246,30 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
 
   return (
     <Card className="p-6">
-      <div className="flex items-center mb-6">
-        <Target className="w-6 h-6 text-blue-600 mr-3" />
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-            🎯 Strategic Wallet Generation
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Generate wallets with intelligent distribution and timing
-          </p>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center">
+          <Target className="w-6 h-6 text-blue-600 mr-3" />
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+              🎯 Strategic Wallet Generation
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Generate wallets with intelligent distribution and timing
+            </p>
+          </div>
+        </div>
+        
+        {/* Chain Info Display */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+          <span className="text-lg">{selectedChain.icon}</span>
+          <div className="text-right">
+            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              {selectedChain.name}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              {availableWalletTypes.length} strategies available
+            </div>
+          </div>
         </div>
       </div>
 
@@ -254,9 +332,10 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
           </h3>
           <div className="space-y-3">
             {distribution.map((item, index) => {
-              const walletType = WALLET_TYPES.find(t => t.value === item.type);
+              const walletType = availableWalletTypes.find(t => t.value === item.type);
+              const hasZeroCount = item.count === 0;
               return (
-                <div key={index} className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div key={index} className={`flex items-center gap-4 p-3 rounded-lg ${hasZeroCount ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800' : 'bg-gray-50 dark:bg-gray-800'}`}>
                   <div className="flex-1">
                     <select
                       value={item.type}
@@ -267,7 +346,7 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
                       }}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                     >
-                      {WALLET_TYPES.map(type => (
+                      {availableWalletTypes.map(type => (
                         <option key={type.value} value={type.value}>
                           {type.label}
                         </option>
@@ -327,7 +406,7 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
                 variant="secondary"
                 size="sm"
                 onClick={addWalletType}
-                disabled={distribution.length >= WALLET_TYPES.length}
+                disabled={distribution.length >= availableWalletTypes.length}
               >
                 <Plus className="w-4 h-4 mr-1" />
                 Add Type
@@ -347,6 +426,11 @@ export const StrategicWalletGenerator: React.FC<StrategicWalletGeneratorProps> =
               {getTotalDistribution() !== totalWallets && (
                 <span className="text-red-500 ml-2">
                   (Must equal total)
+                </span>
+              )}
+              {distribution.some(item => item.count === 0) && (
+                <span className="text-orange-500 ml-2">
+                  ⚠️ Types with 0 count will be excluded
                 </span>
               )}
             </div>

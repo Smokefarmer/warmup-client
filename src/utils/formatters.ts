@@ -1,3 +1,31 @@
+// Safe conversion to BigInt that handles floats and various input types
+export const safeToBigInt = (value: bigint | string | number | undefined | null): bigint => {
+  if (value === undefined || value === null || value === '') {
+    return BigInt(0);
+  }
+  
+  if (typeof value === 'bigint') {
+    return value;
+  }
+  
+  if (typeof value === 'number') {
+    // Convert float to integer by flooring
+    return BigInt(Math.floor(value));
+  }
+  
+  // It's a string
+  try {
+    // If string contains decimal point, parse as float first then floor
+    if (value.includes('.')) {
+      return BigInt(Math.floor(parseFloat(value)));
+    }
+    return BigInt(value);
+  } catch (error) {
+    console.error('Error converting to BigInt:', value, error);
+    return BigInt(0);
+  }
+};
+
 // Format bigint values to human readable format
 export const formatBigInt = (value: bigint, decimals: number = 18): string => {
   const divisor = BigInt(10 ** decimals);
@@ -17,29 +45,13 @@ export const formatBigInt = (value: bigint, decimals: number = 18): string => {
 // Format currency values - Updated to handle different input types
 export const formatCurrency = (value: bigint | string | number, symbol: string = 'ETH', decimals: number = 18): string => {
   try {
-    let formatted: string;
-    
-    if (typeof value === 'string') {
-      // If it's already a string with decimal places, use as is
-      if (value.includes('.')) {
-        formatted = value;
-      } else {
-        // Convert string to bigint and format
-        const bigIntValue = BigInt(value);
-        formatted = formatBigInt(bigIntValue, decimals);
-      }
-    } else if (typeof value === 'number') {
-      // Convert number to string and handle
-      formatted = value.toString();
-    } else {
-      // Handle bigint
-      formatted = formatBigInt(value, decimals);
-    }
-    
+    // Use safe conversion to BigInt
+    const bigIntValue = safeToBigInt(value);
+    const formatted = formatBigInt(bigIntValue, decimals);
     return `${formatted} ${symbol}`;
   } catch (error) {
-    console.error('Error formatting currency:', error);
-    return `${value} ${symbol}`;
+    console.error('Error formatting currency:', error, value);
+    return `0 ${symbol}`;
   }
 };
 
@@ -123,6 +135,8 @@ export const getChainCurrencyInfo = (chainId: number) => {
     case 102: // Solana Devnet  
     case 103: // Solana Testnet
       return { symbol: 'SOL', decimals: 9 };
+    case 56: // BNB Smart Chain
+      return { symbol: 'BNB', decimals: 18 };
     case 8453: // Base
       return { symbol: 'ETH', decimals: 18 };
     default:

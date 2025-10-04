@@ -2,7 +2,7 @@ import React from 'react';
 import { Card } from './common/Card';
 import { useBalanceSummary } from '../hooks/useBalance';
 import { useWallets } from '../hooks/useWallets';
-import { formatMixedBalance } from '../utils/formatters';
+import { formatMixedBalance, safeToBigInt } from '../utils/formatters';
 import { WalletStatus } from '../types/wallet';
 import { 
   Wallet, 
@@ -37,7 +37,7 @@ export const BalanceSummary: React.FC = () => {
   const pausedWallets = wallets.filter(w => w.status === WalletStatus.PAUSED).length;
   const bannedWallets = wallets.filter(w => w.status === WalletStatus.BANNED).length;
   
-  const totalFunded = wallets.reduce((sum, w) => sum + BigInt(w.totalFunded || '0'), BigInt(0));
+  const totalFunded = wallets.reduce((sum, w) => sum + safeToBigInt(w.totalFunded), BigInt(0));
   const averageFunded = wallets.length > 0 ? totalFunded / BigInt(wallets.length) : BigInt(0);
 
   return (
@@ -135,7 +135,7 @@ export const BalanceSummary: React.FC = () => {
                 <DollarSign className="w-6 h-6 text-indigo-600" />
               </div>
               <p className="text-2xl font-bold text-indigo-600">
-                {formatMixedBalance(BigInt(balanceSummary.totalFunded || '0'))}
+                {formatMixedBalance(balanceSummary.totalFunded || '0')}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">API Total Funded</p>
             </div>

@@ -5,7 +5,7 @@ import { StatusBadge } from './common/StatusBadge';
 import { CopyButton } from './common/CopyButton';
 import { SkeletonLoader } from './common/SkeletonLoader';
 import { useArchivedWallets, useUnarchiveWallet } from '../hooks/useWallets';
-import { formatAddress, formatWalletBalance, formatDate } from '../utils/formatters';
+import { formatAddress, formatWalletBalance, formatDate, safeToBigInt } from '../utils/formatters';
 import { WalletStatus } from '../types/wallet';
 import { getChainName, getExplorerUrl } from '../config/chains';
 import { 
@@ -180,12 +180,12 @@ export const ArchivedWalletsView: React.FC<ArchivedWalletsViewProps> = ({ onBack
                     </td>
                     <td>
                       <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {formatWalletBalance(BigInt(wallet.totalFunded || '0'), wallet.chainId)}
+                        {formatWalletBalance(wallet.totalFunded || '0', wallet.chainId)}
                       </span>
                     </td>
                     <td>
                       <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {formatWalletBalance(BigInt(wallet.nativeTokenBalance || '0'), wallet.chainId)}
+                        {formatWalletBalance(wallet.nativeTokenBalance || '0', wallet.chainId)}
                       </span>
                     </td>
                     <td>
@@ -238,7 +238,7 @@ export const ArchivedWalletsView: React.FC<ArchivedWalletsViewProps> = ({ onBack
         <Card>
           <div className="text-center">
             <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {archivedWallets.reduce((sum, wallet) => sum + BigInt(wallet.totalFunded || '0'), BigInt(0)).toString()}
+              {archivedWallets.reduce((sum, wallet) => sum + safeToBigInt(wallet.totalFunded), BigInt(0)).toString()}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">Total Funded</p>
           </div>

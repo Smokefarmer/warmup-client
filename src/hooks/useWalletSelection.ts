@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { IWarmUpWallet, IWallet, WalletStatus } from '../types/wallet';
+import { safeToBigInt } from '../utils/formatters';
 
 export interface WalletSelectionState {
   selectedWallets: Set<string>;
@@ -124,7 +125,7 @@ export const useWalletSelection = (wallets: (IWarmUpWallet | IWallet)[] = []) =>
       active: active.length,
       paused: paused.length,
       banned: banned.length,
-      totalFunded: selected.reduce((sum, w) => sum + BigInt(w.totalFunded || '0'), BigInt(0))
+      totalFunded: selected.reduce((sum, w) => sum + safeToBigInt(w.totalFunded), BigInt(0))
     };
   }, [selectedWalletsData]);
 
