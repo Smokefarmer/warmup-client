@@ -10,6 +10,11 @@ import {
 } from '../hooks/useFunding';
 import { ChainId } from '../types/wallet';
 import { 
+  getChainName, 
+  getChainSymbol as getChainSymbolFromConfig,
+  SUPPORTED_CHAINS 
+} from '../config/chains';
+import { 
   DollarSign, 
   Copy, 
   RefreshCw, 
@@ -81,26 +86,23 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
     toast.success(`${label} copied to clipboard!`);
   };
 
+  const getChainConfig = (chainId: number) => {
+    return Object.values(SUPPORTED_CHAINS).find(chain => chain.id === chainId);
+  };
+
   const getChainDisplayName = (chainId: number): string => {
-    switch (chainId) {
-      case ChainId.BASE:
-        return 'Base Mainnet';
-      case ChainId.SOLANA:
-        return 'Solana Mainnet';
-      default:
-        return `Chain ${chainId}`;
-    }
+    // Use the existing helper function from chains.ts
+    return getChainName(chainId);
   };
 
   const getChainIcon = (chainId: number) => {
-    switch (chainId) {
-      case ChainId.BASE:
-        return <Network className="w-4 h-4" />;
-      case ChainId.SOLANA:
-        return <Network className="w-4 h-4" />;
-      default:
-        return <Network className="w-4 h-4" />;
-    }
+    const config = getChainConfig(chainId);
+    return config?.icon ? <span className="text-lg">{config.icon}</span> : <Network className="w-4 h-4" />;
+  };
+
+  const getChainSymbol = (chainId: number): string => {
+    // Use the existing helper function from chains.ts
+    return getChainSymbolFromConfig(chainId);
   };
 
   const getStatusIcon = (isAvailable: boolean) => {
@@ -121,27 +123,40 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
     );
   }
 
-  // Show Base and Solana mainnet funder information
+  // Show all chain funder information dynamically
   if (funderInfoAll?.success && funderInfoAll.funderInfo) {
-    // Try different possible chain ID formats
-    const baseInfo = funderInfoAll.funderInfo[ChainId.BASE] || 
-                    funderInfoAll.funderInfo[ChainId.BASE.toString()] ||
-                    funderInfoAll.funderInfo['8453'];
-    const solanaInfo = funderInfoAll.funderInfo[ChainId.SOLANA] || 
-                      funderInfoAll.funderInfo[ChainId.SOLANA.toString()] ||
-                      funderInfoAll.funderInfo['101'];
+    // Get all chains from API response, excluding testnets
+    const chainInfos: Array<{ chainId: number; info: any }> = [];
+    
+    // Iterate through all funder info entries
+    Object.entries(funderInfoAll.funderInfo).forEach(([chainIdStr, info]) => {
+      const chainId = parseInt(chainIdStr);
+      
+      // Filter out testnets (Solana Devnet=102, Solana Testnet=103, Base Sepolia=84532)
+      const isTestnet = chainId === 102 || chainId === 103 || chainId === 84532;
+      
+      // Only include mainnet chains with valid info
+      if (!isNaN(chainId) && info && !isTestnet) {
+        chainInfos.push({ chainId, info });
+      }
+    });
+
+    // Sort by chain priority (SOL, BNB, then others)
+    chainInfos.sort((a, b) => {
+      const priority = (id: number) => {
+        if (id === ChainId.SOLANA) return 1;
+        if (id === ChainId.BSC) return 2;
+        if (id === ChainId.BASE) return 3;
+        return 99;
+      };
+      return priority(a.chainId) - priority(b.chainId);
+    });
 
     // Debug logging
     console.log('🔍 MultiChainFunderStatusCard Debug:', {
       funderInfoAll,
-      baseInfo,
-      solanaInfo,
-      baseChainId: ChainId.BASE,
-      solanaChainId: ChainId.SOLANA,
+      chainInfos,
       availableChains: Object.keys(funderInfoAll.funderInfo),
-      solanaAvailable: solanaInfo?.available,
-      solanaBalance: solanaInfo?.balance,
-      solanaAddress: solanaInfo?.funderAddress
     });
 
     return (
@@ -163,24 +178,29 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Base Mainnet */}
-          {baseInfo && (
-            <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  {getChainIcon(ChainId.BASE)}
-                  <span className="font-medium">
-                    {getChainDisplayName(ChainId.BASE)}
-                  </span>
+          {/* Dynamically render all chains */}
+          {chainInfos.map(({ chainId, info }) => {
+            const isAvailable = info.available || parseFloat(info.balance || '0') > 0;
+            const chainName = getChainDisplayName(chainId);
+            const chainSymbol = getChainSymbol(chainId);
+            
+            return (
+              <div key={chainId} className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    {getChainIcon(chainId)}
+                    <span className="font-medium">
+                      {chainName}
+                    </span>
+                  </div>
+                  {getStatusIcon(isAvailable)}
                 </div>
-                {getStatusIcon(baseInfo.available || parseFloat(baseInfo.balance) > 0)}
-              </div>
 
-                              <div className="space-y-3">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Status:</span>
-                    <span className={baseInfo.available || parseFloat(baseInfo.balance) > 0 ? 'text-green-600' : 'text-red-600'}>
-                      {baseInfo.available || parseFloat(baseInfo.balance) > 0 ? 'Available' : 'Unavailable'}
+                    <span className={isAvailable ? 'text-green-600' : 'text-red-600'}>
+                      {isAvailable ? 'Available' : 'Unavailable'}
                     </span>
                   </div>
 
@@ -189,7 +209,7 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
                     <div className="flex items-center gap-1">
                       <DollarSign className="w-3 h-3 text-green-500" />
                       <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {parseFloat(baseInfo.balance).toFixed(6)}
+                        {parseFloat(info.balance || '0').toFixed(6)} {chainSymbol}
                       </span>
                     </div>
                   </div>
@@ -198,72 +218,24 @@ export const MultiChainFunderStatusCard: React.FC<MultiChainFunderStatusCardProp
                     <span className="text-sm text-gray-600 dark:text-gray-400">Address:</span>
                     <div className="flex items-center gap-1">
                       <span className="font-mono text-xs text-gray-600 dark:text-gray-400 truncate max-w-24">
-                        {baseInfo?.funderAddress?.slice(0, 8) || 'N/A'}...
+                        {info?.funderAddress?.slice(0, 8) || 'N/A'}...
                       </span>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => copyToClipboard(baseInfo.funderAddress, 'Base Address')}
-                      className="p-1"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Solana Mainnet */}
-          {solanaInfo && (
-            <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  {getChainIcon(ChainId.SOLANA)}
-                  <span className="font-medium">
-                    {getChainDisplayName(ChainId.SOLANA)}
-                  </span>
-                </div>
-                {getStatusIcon(solanaInfo.available || parseFloat(solanaInfo.balance) > 0)}
-              </div>
-
-                              <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Status:</span>
-                    <span className={solanaInfo.available || parseFloat(solanaInfo.balance) > 0 ? 'text-green-600' : 'text-red-600'}>
-                      {solanaInfo.available || parseFloat(solanaInfo.balance) > 0 ? 'Available' : 'Unavailable'}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Balance:</span>
-                    <div className="flex items-center gap-1">
-                      <DollarSign className="w-3 h-3 text-green-500" />
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {parseFloat(solanaInfo.balance).toFixed(6)}
-                      </span>
+                      {info?.funderAddress && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => copyToClipboard(info.funderAddress, `${chainName} Address`)}
+                          className="p-1"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                      )}
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Address:</span>
-                    <div className="flex items-center gap-1">
-                      <span className="font-mono text-xs text-gray-600 dark:text-gray-400 truncate max-w-24">
-                        {solanaInfo?.funderAddress?.slice(0, 8) || 'N/A'}...
-                      </span>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => copyToClipboard(solanaInfo.funderAddress, 'Solana Address')}
-                      className="p-1"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </Button>
-                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })}
 
           {/* CEX Balance */}
           {cexBalance?.success && (

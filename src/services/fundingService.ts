@@ -84,10 +84,15 @@ export class FundingService {
     return response.data;
   }
 
-  // Fund selected wallets with chain support
-  static async fundSelectedWallets(walletIds: string[], chainId?: number): Promise<FundingResult> {
+  // Fund selected wallets with chain support and optional amounts
+  static async fundSelectedWallets(
+    walletIds: string[], 
+    chainId?: number, 
+    amounts?: number[]
+  ): Promise<FundingResult> {
     const response = await api.post('/api/funding/selected-wallets', {
       walletIds,
+      amounts,
       chainId
     });
     return response.data;

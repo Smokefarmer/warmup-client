@@ -34,38 +34,24 @@ export const WalletManagementActions: React.FC<WalletManagementActionsProps> = (
 
   const hasBalance = wallet.nativeTokenBalance && safeToBigInt(wallet.nativeTokenBalance) > 0;
   
-  // Try to get funder address from multiple sources
+  // Get funder address for this wallet's chain
   const getFunderAddress = () => {
-    // For Solana wallets, we MUST get a Solana funder address (base58)
-    // First try from funderInfoAll for Solana chain (101)
-    if (funderInfoAll?.funderInfo?.['101']?.funderAddress) {
-      const solanaFunder = funderInfoAll.funderInfo['101'].funderAddress;
-      console.log('Found Solana funder address:', solanaFunder);
-      return solanaFunder;
+    const chainId = wallet.chainId.toString();
+    
+    // First try: Get funder for this wallet's specific chain
+    if (funderInfoAll?.funderInfo?.[chainId]?.funderAddress) {
+      const funderAddr = funderInfoAll.funderInfo[chainId].funderAddress;
+      console.log(`Found funder address for chain ${chainId}:`, funderAddr);
+      return funderAddr;
     }
     
-    // Try other Solana chains (devnet/testnet)
-    const solanaChains = ['102', '103']; // devnet, testnet
-    for (const chainId of solanaChains) {
-      if (funderInfoAll?.funderInfo?.[chainId]?.funderAddress) {
-        const solanaFunder = funderInfoAll.funderInfo[chainId].funderAddress;
-        console.log(`Found Solana funder address on chain ${chainId}:`, solanaFunder);
-        return solanaFunder;
-      }
-    }
-    
-    // Last resort: try from funderStatus but validate it's not hex
+    // Fallback: Try funderStatus (might be legacy/default funder)
     if (funderStatus?.funderAddress) {
-      const address = funderStatus.funderAddress;
-      // Skip Ethereum addresses (they start with 0x)
-      if (!address.startsWith('0x')) {
-        console.log('Using funder address from funderStatus:', address);
-        return address;
-      } else {
-        console.warn('Skipping Ethereum funder address for Solana wallet:', address);
-      }
+      console.log('Using funder address from funderStatus:', funderStatus.funderAddress);
+      return funderStatus.funderAddress;
     }
     
+    console.warn(`No funder address found for chain ${chainId}`);
     return null;
   };
   

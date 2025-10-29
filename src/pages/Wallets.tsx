@@ -15,14 +15,17 @@ import {
   useUpdateWalletStatus, 
   useUpdateWalletType, 
   useArchiveWallet,
+  useUnarchiveWallet,
   useWalletsWithTokenInfo,
   useRefreshTokenCount,
   useSystemTokenLimits,
   useUpdateWalletTag,
   useRemoveWalletTag,
-  useBulkTokenHoldings
+  useBulkTokenHoldings,
+  useSendBackToFunder
 } from '../hooks/useWallets';
 import { useForceUpdateAllBalances, useUpdateTotalFundedForWallet, useBulkUpdateBalances } from '../hooks/useBalance';
+import { useFunderInfoAll } from '../hooks/useFunding';
 import { useMultiChain } from '../hooks/useMultiChain';
 import { WalletStatus, WalletType } from '../types/wallet';
 import { formatAddress, formatDate, formatWalletBalance } from '../utils/formatters';
@@ -46,7 +49,8 @@ import {
   Tag,
   Tags,
   X,
-  Download
+  Download,
+  DollarSign
 } from 'lucide-react';
 
 // Import token components
@@ -91,7 +95,7 @@ export const Wallets: React.FC = () => {
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedType, setSelectedType] = useState('');
+  const [selectedChain, setSelectedChain] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [minBalance, setMinBalance] = useState('');
   const [maxBalance, setMaxBalance] = useState('');
@@ -100,9 +104,12 @@ export const Wallets: React.FC = () => {
   const updateStatusMutation = useUpdateWalletStatus();
   const updateTypeMutation = useUpdateWalletType();
   const archiveMutation = useArchiveWallet();
+  const unarchiveMutation = useUnarchiveWallet();
   const updateAllBalancesMutation = useForceUpdateAllBalances();
   const updateSingleBalanceMutation = useUpdateTotalFundedForWallet();
   const bulkUpdateBalancesMutation = useBulkUpdateBalances();
+  const sendBackMutation = useSendBackToFunder();
+  const { data: funderInfoAll } = useFunderInfoAll();
 
   // Use the correct wallet data based on current view
   const wallets = showArchived ? archivedWallets : activeWallets;
@@ -176,7 +183,7 @@ export const Wallets: React.FC = () => {
       wallet.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (wallet.tag && wallet.tag.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesType = !selectedType || wallet.type === selectedType;
+    const matchesChain = !selectedChain || wallet.chainId.toString() === selectedChain;
     const matchesStatus = !selectedStatus || 
       wallet.status === selectedStatus || 
       wallet.status.toLowerCase() === selectedStatus.toLowerCase();
@@ -202,7 +209,7 @@ export const Wallets: React.FC = () => {
     const matchesTag = !selectedTag || 
       (selectedTag === 'no-tag' ? !wallet.tag : wallet.tag === selectedTag);
     
-    return matchesSearch && matchesType && matchesStatus && matchesMinBalance && matchesMaxBalance && matchesTag;
+    return matchesSearch && matchesChain && matchesStatus && matchesMinBalance && matchesMaxBalance && matchesTag;
   });
 
   // Debug logging to see what wallet data we have
@@ -232,6 +239,127 @@ export const Wallets: React.FC = () => {
       refetchArchived();
     } catch (error) {
       console.error('Failed to archive wallet:', error);
+    }
+  };
+
+  const handleUnarchive = async (walletId: string) => {
+    try {
+      await unarchiveMutation.mutateAsync(walletId);
+      // Refresh both active and archived lists since wallet moved between them
+      refetchActive();
+      refetchArchived();
+    } catch (error) {
+      console.error('Failed to unarchive wallet:', error);
+    }
+  };
+
+  const handleBulkArchive = async () => {
+    if (selectedWallets.size === 0) {
+      toast.error('Please select wallets to archive');
+      return;
+    }
+
+    const walletIds = Array.from(selectedWallets);
+    const confirmMessage = `Are you sure you want to archive ${walletIds.length} wallet${walletIds.length > 1 ? 's' : ''}?`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const walletId of walletIds) {
+      try {
+        await archiveMutation.mutateAsync(walletId);
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to archive wallet ${walletId}:`, error);
+        failCount++;
+      }
+    }
+
+    // Refresh both lists
+    refetchActive();
+    refetchArchived();
+    
+    // Clear selection
+    setSelectedWallets(new Set());
+
+    if (successCount > 0) {
+      toast.success(`Successfully archived ${successCount} wallet${successCount > 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to archive ${failCount} wallet${failCount > 1 ? 's' : ''}`);
+    }
+  };
+
+  const handleBulkUnarchive = async () => {
+    if (selectedWallets.size === 0) {
+      toast.error('Please select wallets to unarchive');
+      return;
+    }
+
+    const walletIds = Array.from(selectedWallets);
+    const confirmMessage = `Are you sure you want to unarchive ${walletIds.length} wallet${walletIds.length > 1 ? 's' : ''}?`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const walletId of walletIds) {
+      try {
+        await unarchiveMutation.mutateAsync(walletId);
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to unarchive wallet ${walletId}:`, error);
+        failCount++;
+      }
+    }
+
+    // Refresh both lists
+    refetchActive();
+    refetchArchived();
+    
+    // Clear selection
+    setSelectedWallets(new Set());
+
+    if (successCount > 0) {
+      toast.success(`Successfully unarchived ${successCount} wallet${successCount > 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to unarchive ${failCount} wallet${failCount > 1 ? 's' : ''}`);
+    }
+  };
+
+  const handleSendBackToFunder = async (wallet: any) => {
+    try {
+      const chainId = wallet.chainId.toString();
+      
+      // Get funder address for this wallet's chain
+      const funderAddress = funderInfoAll?.funderInfo?.[chainId]?.funderAddress;
+      
+      if (!funderAddress) {
+        toast.error(`No funder address found for chain ${chainId}`);
+        return;
+      }
+      
+      const chainName = getChainNameFromService(wallet.chainId);
+      const chainSymbol = supportedChains?.find(c => c.id === wallet.chainId)?.symbol || 'tokens';
+      
+      await sendBackMutation.mutateAsync({
+        walletId: wallet._id,
+        funderAddress: funderAddress
+      });
+      
+      toast.success(`Successfully sent ${chainSymbol} back to funder from wallet`);
+      refetch();
+    } catch (error) {
+      console.error('Failed to send back to funder:', error);
+      toast.error('Failed to send tokens back to funder');
     }
   };
 
@@ -488,6 +616,25 @@ export const Wallets: React.FC = () => {
                     <X className="w-4 h-4 mr-2" />
                     Remove Tags ({selectedWallets.size})
                   </Button>
+                  {showArchived ? (
+                    <Button
+                      variant="success"
+                      onClick={handleBulkUnarchive}
+                      loading={unarchiveMutation.isPending}
+                    >
+                      <Archive className="w-4 h-4 mr-2" />
+                      Unarchive ({selectedWallets.size})
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="danger"
+                      onClick={handleBulkArchive}
+                      loading={archiveMutation.isPending}
+                    >
+                      <Archive className="w-4 h-4 mr-2" />
+                      Archive ({selectedWallets.size})
+                    </Button>
+                  )}
                 </>
               )}
             </>
@@ -527,15 +674,15 @@ export const Wallets: React.FC = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Chain</label>
               <select
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
+                value={selectedChain}
+                onChange={(e) => setSelectedChain(e.target.value)}
               >
-                <option value="">All Types</option>
-                {Object.values(WalletType).map(type => (
-                  <option key={type} value={type}>{type}</option>
+                <option value="">All Chains</option>
+                {supportedChains?.map(chain => (
+                  <option key={chain.id} value={chain.id.toString()}>{chain.name}</option>
                 ))}
               </select>
             </div>
@@ -651,18 +798,18 @@ export const Wallets: React.FC = () => {
             </div>
           </div>
 
-          {/* Type Distribution */}
+          {/* Chain Distribution */}
           <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                  <Target className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <Network className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                 </div>
               </div>
               <div className="ml-3">
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Types</p>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Chains</p>
                 <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {new Set(filteredWallets.map(w => w.type)).size}
+                  {new Set(filteredWallets.map(w => w.chainId)).size}
                 </p>
               </div>
             </div>
@@ -911,15 +1058,45 @@ export const Wallets: React.FC = () => {
                             title: 'Refresh token count'
                           });
                           
-                          actions.push({
-                            id: 'archive',
-                            label: 'Archive Wallet',
-                            icon: <Archive className="w-4 h-4" />,
-                            onClick: () => handleArchive(wallet._id),
-                            variant: 'danger',
-                            loading: archiveMutation.isPending,
-                            title: 'Archive this wallet'
-                          });
+                          // Send back to funder action
+                          const hasBalance = wallet.nativeTokenBalance && parseFloat(wallet.nativeTokenBalance) > 0;
+                          const chainId = wallet.chainId.toString();
+                          const funderAddress = funderInfoAll?.funderInfo?.[chainId]?.funderAddress;
+                          
+                          if (hasBalance && funderAddress) {
+                            actions.push({
+                              id: 'send-to-funder',
+                              label: 'Send to Funder',
+                              icon: <DollarSign className="w-4 h-4" />,
+                              onClick: () => handleSendBackToFunder(wallet),
+                              variant: 'primary',
+                              loading: sendBackMutation.isPending,
+                              title: 'Send native tokens back to funder'
+                            });
+                          }
+                          
+                          // Show Archive or Unarchive based on current view
+                          if (showArchived) {
+                            actions.push({
+                              id: 'unarchive',
+                              label: 'Unarchive Wallet',
+                              icon: <Archive className="w-4 h-4" />,
+                              onClick: () => handleUnarchive(wallet._id),
+                              variant: 'success',
+                              loading: unarchiveMutation.isPending,
+                              title: 'Restore this wallet to active status'
+                            });
+                          } else {
+                            actions.push({
+                              id: 'archive',
+                              label: 'Archive Wallet',
+                              icon: <Archive className="w-4 h-4" />,
+                              onClick: () => handleArchive(wallet._id),
+                              variant: 'danger',
+                              loading: archiveMutation.isPending,
+                              title: 'Archive this wallet'
+                            });
+                          }
                           
                           return <ActionsMenu actions={actions} />;
                         })()}

@@ -277,8 +277,8 @@ export const Funding: React.FC = () => {
       const walletIds = Array.from(selectedWallets);
       const amounts = getFundingAmounts(); // This handles both FIXED and RANDOM modes
       
-      // Use chain-aware funding service
-      const result = await FundingService.fundSelectedWallets(walletIds, selectedChain.id);
+      // Use chain-aware funding service with amounts
+      const result = await FundingService.fundSelectedWallets(walletIds, selectedChain.id, amounts);
       
       if (result.success) {
         const totalAmount = amounts.reduce((sum, amt) => sum + amt, 0);
@@ -341,7 +341,7 @@ export const Funding: React.FC = () => {
         const stealthWallets = walletIds.length - cexWallets;
         const totalAmount = amounts.reduce((sum, amt) => sum + amt, 0);
         toast.success(
-          `🎯 Mixed funding completed! ${cexWallets} CEX + ${stealthWallets} Stealth wallets (${totalAmount.toFixed(3)} SOL total)`
+          `🎯 Mixed funding completed! ${cexWallets} CEX + ${stealthWallets} Stealth wallets (${totalAmount.toFixed(3)} ${selectedChain.symbol} total)`
         );
         // Clear selection and refresh wallet balances
         setSelectedWallets(new Set());
@@ -363,23 +363,23 @@ export const Funding: React.FC = () => {
       return;
     }
 
-    const solanaWallets = Array.from(selectedWallets)
+    const chainWallets = Array.from(selectedWallets)
       .map(id => availableWallets.find(w => w._id === id))
-      .filter(w => w && w.chainId === 101); // Only Solana wallets
+      .filter(w => w && w.chainId === selectedChain.id);
 
-    if (solanaWallets.length === 0) {
-      toast.error('No Solana wallets selected. Sell all tokens is currently only supported for Solana wallets.');
+    if (chainWallets.length === 0) {
+      toast.error(`No ${selectedChain.name} wallets selected on this chain.`);
       return;
     }
 
     setIsCleaningUp(true);
-    setCleanupProgress({ current: 0, total: solanaWallets.length, status: 'Selling tokens...' });
+    setCleanupProgress({ current: 0, total: chainWallets.length, status: 'Selling tokens...' });
 
     let successCount = 0;
     let failCount = 0;
 
-    for (let i = 0; i < solanaWallets.length; i++) {
-      const wallet = solanaWallets[i];
+    for (let i = 0; i < chainWallets.length; i++) {
+      const wallet = chainWallets[i];
       if (!wallet) {
         console.error('Wallet is undefined at index:', i);
         failCount++;
@@ -388,7 +388,7 @@ export const Funding: React.FC = () => {
 
       setCleanupProgress({ 
         current: i + 1, 
-        total: solanaWallets.length, 
+        total: chainWallets.length, 
         currentWallet: formatAddress(wallet.publicKey || wallet.address),
         status: 'Selling tokens...'
       });
@@ -402,7 +402,7 @@ export const Funding: React.FC = () => {
       }
 
       // Small delay between wallets
-      if (i < solanaWallets.length - 1) {
+      if (i < chainWallets.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
@@ -428,27 +428,27 @@ export const Funding: React.FC = () => {
 
     const validatedFunderAddress = getValidatedFunderAddress();
     if (!validatedFunderAddress) {
-      toast.error('No valid Solana funder address available');
+      toast.error(`No valid ${selectedChain.name} funder address available`);
       return;
     }
 
-    const solanaWallets = Array.from(selectedWallets)
+    const chainWallets = Array.from(selectedWallets)
       .map(id => availableWallets.find(w => w._id === id))
-      .filter(w => w && w.chainId === 101); // Only Solana wallets
+      .filter(w => w && w.chainId === selectedChain.id);
 
-    if (solanaWallets.length === 0) {
-      toast.error('No Solana wallets selected. Send back to funder is currently only supported for Solana wallets.');
+    if (chainWallets.length === 0) {
+      toast.error(`No ${selectedChain.name} wallets selected on this chain.`);
       return;
     }
 
     setIsCleaningUp(true);
-    setCleanupProgress({ current: 0, total: solanaWallets.length, status: 'Sending back to funder...' });
+    setCleanupProgress({ current: 0, total: chainWallets.length, status: 'Sending back to funder...' });
 
     let successCount = 0;
     let failCount = 0;
 
-    for (let i = 0; i < solanaWallets.length; i++) {
-      const wallet = solanaWallets[i];
+    for (let i = 0; i < chainWallets.length; i++) {
+      const wallet = chainWallets[i];
       if (!wallet) {
         console.error('Wallet is undefined at index:', i);
         failCount++;
@@ -457,7 +457,7 @@ export const Funding: React.FC = () => {
 
       setCleanupProgress({ 
         current: i + 1, 
-        total: solanaWallets.length, 
+        total: chainWallets.length, 
         currentWallet: formatAddress(wallet.publicKey || wallet.address),
         status: 'Sending back to funder...'
       });
@@ -474,7 +474,7 @@ export const Funding: React.FC = () => {
       }
 
       // Small delay between wallets
-      if (i < solanaWallets.length - 1) {
+      if (i < chainWallets.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
@@ -483,10 +483,10 @@ export const Funding: React.FC = () => {
     setCleanupProgress({ current: 0, total: 0 });
 
     if (successCount > 0) {
-      toast.success(`Successfully sent back SOL from ${successCount} wallet${successCount !== 1 ? 's' : ''}`);
+      toast.success(`Successfully sent back ${selectedChain.symbol} from ${successCount} wallet${successCount !== 1 ? 's' : ''}`);
     }
     if (failCount > 0) {
-      toast.error(`Failed to send back SOL from ${failCount} wallet${failCount !== 1 ? 's' : ''}`);
+      toast.error(`Failed to send back ${selectedChain.symbol} from ${failCount} wallet${failCount !== 1 ? 's' : ''}`);
     }
 
     refetchWallets();
@@ -498,29 +498,29 @@ export const Funding: React.FC = () => {
       return;
     }
 
-    const solanaWallets = Array.from(selectedWallets)
+    const chainWallets = Array.from(selectedWallets)
       .map(id => availableWallets.find(w => w._id === id))
-      .filter(w => w && w.chainId === 101); // Only Solana wallets
+      .filter(w => w && w.chainId === selectedChain.id);
 
-    if (solanaWallets.length === 0) {
-      toast.error('No Solana wallets selected. Wallet cleanup is currently only supported for Solana wallets.');
+    if (chainWallets.length === 0) {
+      toast.error(`No ${selectedChain.name} wallets selected on this chain.`);
       return;
     }
 
     const validatedFunderAddress = getValidatedFunderAddress();
     if (!validatedFunderAddress) {
-      toast.error('No valid Solana funder address available');
+      toast.error(`No valid ${selectedChain.name} funder address available`);
       return;
     }
 
     setIsCleaningUp(true);
-    setCleanupProgress({ current: 0, total: solanaWallets.length * 2, status: 'Starting cleanup...' });
+    setCleanupProgress({ current: 0, total: chainWallets.length * 2, status: 'Starting cleanup...' });
 
     let successCount = 0;
     let failCount = 0;
 
-    for (let i = 0; i < solanaWallets.length; i++) {
-      const wallet = solanaWallets[i];
+    for (let i = 0; i < chainWallets.length; i++) {
+      const wallet = chainWallets[i];
       if (!wallet) {
         console.error('Wallet is undefined at index:', i);
         failCount++;
@@ -530,7 +530,7 @@ export const Funding: React.FC = () => {
       // Step 1: Sell all tokens
       setCleanupProgress({ 
         current: i * 2 + 1, 
-        total: solanaWallets.length * 2, 
+        total: chainWallets.length * 2, 
         currentWallet: formatAddress(wallet.publicKey || wallet.address),
         status: 'Selling tokens...'
       });
@@ -548,7 +548,7 @@ export const Funding: React.FC = () => {
       // Step 2: Send back to funder
       setCleanupProgress({ 
         current: i * 2 + 2, 
-        total: solanaWallets.length * 2, 
+        total: chainWallets.length * 2, 
         currentWallet: formatAddress(wallet.publicKey || wallet.address),
         status: 'Sending back to funder...'
       });
@@ -565,7 +565,7 @@ export const Funding: React.FC = () => {
       }
 
       // Small delay between wallets
-      if (i < solanaWallets.length - 1) {
+      if (i < chainWallets.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
@@ -690,8 +690,8 @@ export const Funding: React.FC = () => {
 
           <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
             <p className="text-xs text-gray-600 dark:text-gray-400">
-              ℹ️ Cleanup actions are only supported for Solana wallets. 
-              {Array.from(selectedWallets).map(id => availableWallets.find(w => w._id === id)).filter(w => w && w.chainId === 101).length} of {selectedWallets.size} selected wallets are Solana wallets.
+              ℹ️ Cleanup actions are for {selectedChain.name} wallets on the selected chain. 
+              {Array.from(selectedWallets).map(id => availableWallets.find(w => w._id === id)).filter(w => w && w.chainId === selectedChain.id).length} of {selectedWallets.size} selected wallets are {selectedChain.name} wallets.
             </p>
           </div>
         </div>
@@ -1006,7 +1006,7 @@ export const Funding: React.FC = () => {
                     onChange={(e) => setFixedAmount(parseFloat(e.target.value) || 0)}
                     className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   />
-                  <span className="text-sm text-gray-500">SOL</span>
+                  <span className="text-sm text-gray-500">{selectedChain.symbol}</span>
                 </div>
               )}
 
@@ -1026,7 +1026,7 @@ export const Funding: React.FC = () => {
                         onChange={(e) => setMinAmount(parseFloat(e.target.value) || 0)}
                         className="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       />
-                      <span className="text-sm text-gray-500">SOL</span>
+                      <span className="text-sm text-gray-500">{selectedChain.symbol}</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -1040,12 +1040,12 @@ export const Funding: React.FC = () => {
                         onChange={(e) => setMaxAmount(parseFloat(e.target.value) || 0)}
                         className="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       />
-                      <span className="text-sm text-gray-500">SOL</span>
+                      <span className="text-sm text-gray-500">{selectedChain.symbol}</span>
                     </div>
                   </div>
                   <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
                     <p className="text-sm text-blue-700 dark:text-blue-300">
-                      💡 Each wallet will get a random amount between {minAmount} - {maxAmount} SOL
+                      💡 Each wallet will get a random amount between {minAmount} - {maxAmount} {selectedChain.symbol}
                     </p>
                   </div>
                 </div>
@@ -1136,11 +1136,11 @@ export const Funding: React.FC = () => {
                     <p>🏦 CEX: {Math.ceil(selectedWallets.size * cexPercent / 100)} wallets</p>
                     <p>🥷 Stealth: {selectedWallets.size - Math.ceil(selectedWallets.size * cexPercent / 100)} wallets</p>
                     {amountMode === 'FIXED' ? (
-                      <p>💰 Total: {(selectedWallets.size * fixedAmount).toFixed(3)} SOL (fixed)</p>
+                      <p>💰 Total: {(selectedWallets.size * fixedAmount).toFixed(3)} {selectedChain.symbol} (fixed)</p>
                     ) : (
-                      <p>💰 Total: ~{((selectedWallets.size * (minAmount + maxAmount)) / 2).toFixed(3)} SOL (avg random)</p>
+                      <p>💰 Total: ~{((selectedWallets.size * (minAmount + maxAmount)) / 2).toFixed(3)} {selectedChain.symbol} (avg random)</p>
                     )}
-                    <p>🎲 Amounts: {amountMode === 'FIXED' ? `${fixedAmount} SOL each` : `${minAmount}-${maxAmount} SOL random`}</p>
+                    <p>🎲 Amounts: {amountMode === 'FIXED' ? `${fixedAmount} ${selectedChain.symbol} each` : `${minAmount}-${maxAmount} ${selectedChain.symbol} random`}</p>
                   </div>
                 </div>
               </div>
