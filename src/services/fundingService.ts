@@ -98,6 +98,22 @@ export class FundingService {
     return response.data;
   }
 
+  // 🎲 NEW: Fund selected wallets with Multi-CEX rotation (BNB only)
+  static async fundSelectedWalletsMultiCex(params: {
+    walletIds: string[];
+    chainId: number;
+    useMultiCex: boolean;
+    randomizeAmounts?: boolean;
+    amountRange?: {
+      min: number;
+      max: number;
+    };
+    amounts?: number[];
+  }): Promise<FundingResult> {
+    const response = await api.post('/api/funding/selected-wallets', params);
+    return response.data;
+  }
+
   // Check transaction status
   static async checkTransactionStatus(txHash: string): Promise<Transaction> {
     const response = await api.get(ENDPOINTS.transactionStatus(txHash));

@@ -4,6 +4,7 @@ import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { ChainSelector } from '../components/common/ChainSelector';
 import { MultiChainFunderStatusCard } from '../components/MultiChainFunderStatusCard';
+import { CexBalancesCard } from '../components/CexBalancesCard';
 import { VirtualWalletList } from '../components/VirtualWalletList';
 import { useFunderStatus, useFunderInfoAll } from '../hooks/useFunding';
 import { useWallets, useSellAllTokens, useSendBackToFunder } from '../hooks/useWallets';
@@ -74,6 +75,14 @@ export const Funding: React.FC = () => {
   const [cexPercent, setCexPercent] = useState(30); // 30% CEX, 70% Stealth
   const [useStealthTransfers, setUseStealthTransfers] = useState(true);
   const [isFunding, setIsFunding] = useState(false);
+  
+  // 🎲 NEW: Multi-CEX options for BNB
+  const [bnbFundingMode, setBnbFundingMode] = useState<'mixer' | 'multiCex'>('mixer');
+  const isBnbChain = selectedChain.id === 56;
+
+  // 🎲 NEW: Multi-CEX options for SOL
+  const [useSolMultiCex, setUseSolMultiCex] = useState(true); // Default enabled for SOL
+  const isSolChain = selectedChain.id === 101;
   
   // Bulk cleanup states
   const [isCleaningUp, setIsCleaningUp] = useState(false);
@@ -277,17 +286,80 @@ export const Funding: React.FC = () => {
       const walletIds = Array.from(selectedWallets);
       const amounts = getFundingAmounts(); // This handles both FIXED and RANDOM modes
       
-      // Use chain-aware funding service with amounts
-      const result = await FundingService.fundSelectedWallets(walletIds, selectedChain.id, amounts);
-      
-      if (result.success) {
-        const totalAmount = amounts.reduce((sum, amt) => sum + amt, 0);
-        toast.success(`✅ ${method} funded ${walletIds.length} wallets with ${totalAmount.toFixed(3)} ${selectedChain.symbol} total`);
-        // Clear selection and refresh wallet balances
-        setSelectedWallets(new Set());
-        refetchWallets();
+      // 🎲 NEW: For BNB chain with Multi-CEX mode
+      if (isBnbChain && bnbFundingMode === 'multiCex') {
+        const requestBody: any = {
+          walletIds,
+          chainId: selectedChain.id,
+          useMultiCex: true,
+        };
+
+        if (amountMode === 'RANDOM') {
+          requestBody.randomizeAmounts = true;
+          requestBody.amountRange = {
+            min: minAmount,
+            max: maxAmount,
+          };
+        } else {
+          requestBody.amounts = amounts;
+          requestBody.randomizeAmounts = false;
+        }
+
+        const result = await FundingService.fundSelectedWalletsMultiCex(requestBody);
+        
+        if (result.success) {
+          const totalAmount = amountMode === 'RANDOM' 
+            ? ((minAmount + maxAmount) / 2 * walletIds.length).toFixed(3)
+            : amounts.reduce((sum, amt) => sum + amt, 0).toFixed(3);
+          toast.success(`🎲 Multi-CEX funded ${walletIds.length} wallets with ~${totalAmount} ${selectedChain.symbol} total`);
+          setSelectedWallets(new Set());
+          refetchWallets();
+        } else {
+          toast.error(`❌ Multi-CEX funding failed: ${result.message}`);
+        }
+      } else if (isSolChain && useSolMultiCex) {
+        // 🎲 NEW: For SOL chain with Multi-CEX mode
+        const requestBody: any = {
+          walletIds,
+          chainId: selectedChain.id,
+          useMultiCex: true,
+        };
+
+        if (amountMode === 'RANDOM') {
+          requestBody.randomizeAmounts = true;
+          requestBody.amountRange = {
+            min: minAmount,
+            max: maxAmount,
+          };
+        } else {
+          requestBody.amounts = amounts;
+          requestBody.randomizeAmounts = false;
+        }
+
+        const result = await FundingService.fundSelectedWalletsMultiCex(requestBody);
+        
+        if (result.success) {
+          const totalAmount = amountMode === 'RANDOM' 
+            ? ((minAmount + maxAmount) / 2 * walletIds.length).toFixed(3)
+            : amounts.reduce((sum, amt) => sum + amt, 0).toFixed(3);
+          toast.success(`🎲 Multi-CEX funded ${walletIds.length} SOL wallets with ~${totalAmount} SOL total`);
+          setSelectedWallets(new Set());
+          refetchWallets();
+        } else {
+          toast.error(`❌ Multi-CEX SOL funding failed: ${result.message}`);
+        }
       } else {
-        toast.error(`❌ Funding failed: ${result.message}`);
+        // Use chain-aware funding service with amounts (legacy/standard method)
+        const result = await FundingService.fundSelectedWallets(walletIds, selectedChain.id, amounts);
+        
+        if (result.success) {
+          const totalAmount = amounts.reduce((sum, amt) => sum + amt, 0);
+          toast.success(`✅ ${method} funded ${walletIds.length} wallets with ${totalAmount.toFixed(3)} ${selectedChain.symbol} total`);
+          setSelectedWallets(new Set());
+          refetchWallets();
+        } else {
+          toast.error(`❌ Funding failed: ${result.message}`);
+        }
       }
     } catch (error: any) {
       toast.error(`❌ Error: ${error.message || 'Unknown error'}`);
@@ -614,6 +686,8 @@ export const Funding: React.FC = () => {
       {/* Funder Status Card */}
       <MultiChainFunderStatusCard onRefresh={refetchFunder} />
 
+      {/* CEX Balances Card */}
+      <CexBalancesCard />
 
       {/* Bulk Cleanup Actions */}
       {selectedWallets.size > 0 && (
@@ -962,6 +1036,123 @@ export const Funding: React.FC = () => {
               </Button>
             </div>
 
+            {/* 🎲 BNB Multi-CEX Mode Selection */}
+            {isBnbChain && (
+              <div className="space-y-3 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-lg border-2 border-yellow-200 dark:border-yellow-800">
+                <h4 className="font-medium text-gray-900 dark:text-gray-100 flex items-center">
+                  🎲 BNB Funding Method
+                </h4>
+                <div className="space-y-2">
+                  <label className="flex items-start p-3 border-2 rounded-lg cursor-pointer transition-all hover:bg-white dark:hover:bg-gray-800" 
+                    style={{ 
+                      borderColor: bnbFundingMode === 'mixer' ? '#f59e0b' : '#d1d5db',
+                      backgroundColor: bnbFundingMode === 'mixer' ? '#fef3c7' : 'transparent'
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="bnbFundingMode"
+                      value="mixer"
+                      checked={bnbFundingMode === 'mixer'}
+                      onChange={() => setBnbFundingMode('mixer')}
+                      className="mt-1 mr-3"
+                    />
+                    <div>
+                      <div className="font-medium text-gray-900 dark:text-gray-100">
+                        🔒 Privacy Mixer (BNB → USDT → BNB)
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        3-step mixer for maximum privacy • BlockRazor bundling
+                      </div>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-start p-3 border-2 rounded-lg cursor-pointer transition-all hover:bg-white dark:hover:bg-gray-800"
+                    style={{ 
+                      borderColor: bnbFundingMode === 'multiCex' ? '#f59e0b' : '#d1d5db',
+                      backgroundColor: bnbFundingMode === 'multiCex' ? '#fef3c7' : 'transparent'
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="bnbFundingMode"
+                      value="multiCex"
+                      checked={bnbFundingMode === 'multiCex'}
+                      onChange={() => setBnbFundingMode('multiCex')}
+                      className="mt-1 mr-3"
+                    />
+                    <div>
+                      <div className="font-medium text-gray-900 dark:text-gray-100">
+                        🎲 Multi-CEX Rotation (Random CEX per wallet)
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        Randomly rotates between MEXC, LBank, KuCoin, Gate.io • Better privacy through CEX distribution
+                      </div>
+                    </div>
+                  </label>
+                </div>
+                
+                {bnbFundingMode === 'multiCex' && (
+                  <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg">
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      ℹ️ <strong>Multi-CEX Mode:</strong> Each wallet gets funded from a randomly selected CEX. 
+                      Configure at least one CEX in your .env file (MEXC, LBank, KuCoin, or Gate.io).
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 🎲 SOL Multi-CEX Toggle */}
+            {isSolChain && (
+              <div className="space-y-3 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-lg border-2 border-purple-200 dark:border-purple-800">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100 flex items-center">
+                    🎲 SOL Funding Method
+                  </h4>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={useSolMultiCex}
+                      onChange={(e) => setUseSolMultiCex(e.target.checked)}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 mr-2"
+                    />
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      Enable Multi-CEX Rotation
+                    </span>
+                  </label>
+                </div>
+
+                {useSolMultiCex ? (
+                  <div>
+                    <div className="p-3 bg-purple-100 dark:bg-purple-900/40 rounded-lg">
+                      <div className="font-medium text-purple-900 dark:text-purple-100 mb-1">
+                        🎲 Multi-CEX Rotation (Random CEX per wallet)
+                      </div>
+                      <div className="text-sm text-purple-700 dark:text-purple-300">
+                        Each wallet funded from random CEX: MEXC, LBank, KuCoin, or Gate.io • Maximum privacy through distribution
+                      </div>
+                    </div>
+                    <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg mt-2">
+                      <p className="text-sm text-blue-700 dark:text-blue-300">
+                        ℹ️ <strong>Multi-CEX Mode:</strong> Each wallet gets funded from a randomly selected CEX. 
+                        Configure at least one CEX in your .env file (MEXC, LBank, KuCoin, or Gate.io).
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                    <div className="font-medium text-gray-900 dark:text-gray-100 mb-1">
+                      🔒 Direct Wallet Funding
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Standard direct SOL transfer from funder wallet
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Amount Configuration */}
             <div className="space-y-4">
               <h4 className="font-medium text-gray-900 dark:text-gray-100">💰 Funding Amount Configuration</h4>
@@ -988,7 +1179,7 @@ export const Funding: React.FC = () => {
                     onChange={() => setAmountMode('RANDOM')}
                     className="mr-2"
                   />
-                  Random Range (CLI-style)
+                  🎲 Random Range {bnbFundingMode === 'multiCex' && '(Recommended for Multi-CEX)'}
                 </label>
               </div>
 

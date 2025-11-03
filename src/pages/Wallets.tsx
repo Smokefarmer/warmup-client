@@ -8,6 +8,7 @@ import { CopyButton } from '../components/common/CopyButton';
 import { ActionsMenu, ActionItem } from '../components/common/ActionsMenu';
 import { StrategicWalletGenerator } from '../components/StrategicWalletGenerator';
 import { GenerateWalletModal } from '../components/GenerateWalletModal';
+import { BulkCleanupModal } from '../components/BulkCleanupModal';
 
 import { 
   useWallets, 
@@ -22,6 +23,7 @@ import {
   useUpdateWalletTag,
   useRemoveWalletTag,
   useBulkTokenHoldings,
+  useSellAllTokens,
   useSendBackToFunder
 } from '../hooks/useWallets';
 import { useForceUpdateAllBalances, useUpdateTotalFundedForWallet, useBulkUpdateBalances } from '../hooks/useBalance';
@@ -50,7 +52,9 @@ import {
   Tags,
   X,
   Download,
-  DollarSign
+  DollarSign,
+  Trash2,
+  Send
 } from 'lucide-react';
 
 // Import token components
@@ -93,6 +97,19 @@ export const Wallets: React.FC = () => {
   const [bulkTagValue, setBulkTagValue] = useState('');
   const [showBulkTagModal, setShowBulkTagModal] = useState(false);
   
+  // Bulk cleanup states
+  const [showCleanupModal, setShowCleanupModal] = useState(false);
+  const [cleanupOperation, setCleanupOperation] = useState<'sell' | 'sendBack' | 'full'>('full');
+  const [cleanupProgress, setCleanupProgress] = useState({
+    current: 0,
+    total: 0,
+    currentWallet: '',
+    currentAction: 'selling' as 'selling' | 'sending' | 'complete' | 'error',
+    successCount: 0,
+    failCount: 0,
+    errors: [] as string[],
+  });
+  
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedChain, setSelectedChain] = useState('');
@@ -105,6 +122,8 @@ export const Wallets: React.FC = () => {
   const updateTypeMutation = useUpdateWalletType();
   const archiveMutation = useArchiveWallet();
   const unarchiveMutation = useUnarchiveWallet();
+  const sellAllTokensMutation = useSellAllTokens();
+  const sendBackToFunderMutation = useSendBackToFunder();
   const updateAllBalancesMutation = useForceUpdateAllBalances();
   const updateSingleBalanceMutation = useUpdateTotalFundedForWallet();
   const bulkUpdateBalancesMutation = useBulkUpdateBalances();
@@ -528,6 +547,216 @@ export const Wallets: React.FC = () => {
     setSelectedWallets(new Set());
   };
 
+  // 🧹 Bulk Cleanup Operations
+  const handleBulkSellAllTokens = async () => {
+    if (selectedWallets.size === 0) {
+      toast.error('Please select at least one wallet');
+      return;
+    }
+
+    const wallets = Array.from(selectedWallets).map(id => 
+      activeWallets.find(w => w._id === id)
+    ).filter(Boolean);
+
+    setCleanupOperation('sell');
+    setCleanupProgress({
+      current: 0,
+      total: wallets.length,
+      currentWallet: '',
+      currentAction: 'selling',
+      successCount: 0,
+      failCount: 0,
+      errors: [],
+    });
+    setShowCleanupModal(true);
+
+    let successCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < wallets.length; i++) {
+      const wallet = wallets[i];
+      if (!wallet) continue;
+
+      setCleanupProgress(prev => ({
+        ...prev,
+        current: i + 1,
+        currentWallet: formatAddress(wallet.publicKey || wallet.address),
+        currentAction: 'selling',
+      }));
+
+      try {
+        await sellAllTokensMutation.mutateAsync(wallet._id);
+        successCount++;
+        setCleanupProgress(prev => ({ ...prev, successCount }));
+      } catch (error: any) {
+        failCount++;
+        const errorMsg = `${formatAddress(wallet.publicKey || wallet.address)}: ${error.message}`;
+        errors.push(errorMsg);
+        setCleanupProgress(prev => ({ 
+          ...prev, 
+          failCount,
+          errors: [...prev.errors, errorMsg]
+        }));
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    setCleanupProgress(prev => ({ ...prev, currentAction: 'complete' }));
+
+    if (successCount > 0) {
+      toast.success(`✅ Sold tokens from ${successCount} wallet${successCount !== 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`❌ Failed for ${failCount} wallet${failCount !== 1 ? 's' : ''}`);
+    }
+
+    setSelectedWallets(new Set());
+    refetchActive();
+  };
+
+  const handleBulkSendBackToFunder = async () => {
+    if (selectedWallets.size === 0) {
+      toast.error('Please select at least one wallet');
+      return;
+    }
+
+    const wallets = Array.from(selectedWallets).map(id => 
+      activeWallets.find(w => w._id === id)
+    ).filter(Boolean);
+
+    setCleanupOperation('sendBack');
+    setCleanupProgress({
+      current: 0,
+      total: wallets.length,
+      currentWallet: '',
+      currentAction: 'sending',
+      successCount: 0,
+      failCount: 0,
+      errors: [],
+    });
+    setShowCleanupModal(true);
+
+    let successCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < wallets.length; i++) {
+      const wallet = wallets[i];
+      if (!wallet) continue;
+
+      setCleanupProgress(prev => ({
+        ...prev,
+        current: i + 1,
+        currentWallet: formatAddress(wallet.publicKey || wallet.address),
+        currentAction: 'sending',
+      }));
+
+      try {
+        await sendBackToFunderMutation.mutateAsync(wallet._id);
+        successCount++;
+        setCleanupProgress(prev => ({ ...prev, successCount }));
+      } catch (error: any) {
+        failCount++;
+        const errorMsg = `${formatAddress(wallet.publicKey || wallet.address)}: ${error.message}`;
+        errors.push(errorMsg);
+        setCleanupProgress(prev => ({ 
+          ...prev, 
+          failCount,
+          errors: [...prev.errors, errorMsg]
+        }));
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    setCleanupProgress(prev => ({ ...prev, currentAction: 'complete' }));
+
+    if (successCount > 0) {
+      toast.success(`✅ Sent funds back from ${successCount} wallet${successCount !== 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`❌ Failed for ${failCount} wallet${failCount !== 1 ? 's' : ''}`);
+    }
+
+    setSelectedWallets(new Set());
+    refetchActive();
+  };
+
+  const handleBulkFullCleanup = async () => {
+    if (selectedWallets.size === 0) {
+      toast.error('Please select at least one wallet');
+      return;
+    }
+
+    const wallets = Array.from(selectedWallets).map(id => 
+      activeWallets.find(w => w._id === id)
+    ).filter(Boolean);
+
+    setCleanupOperation('full');
+    setCleanupProgress({
+      current: 0,
+      total: wallets.length,
+      currentWallet: '',
+      currentAction: 'selling',
+      successCount: 0,
+      failCount: 0,
+      errors: [],
+    });
+    setShowCleanupModal(true);
+
+    let successCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < wallets.length; i++) {
+      const wallet = wallets[i];
+      if (!wallet) continue;
+
+      const walletAddr = formatAddress(wallet.publicKey || wallet.address);
+      setCleanupProgress(prev => ({
+        ...prev,
+        current: i + 1,
+        currentWallet: walletAddr,
+        currentAction: 'selling',
+      }));
+
+      try {
+        await sellAllTokensMutation.mutateAsync(wallet._id);
+        
+        setCleanupProgress(prev => ({ ...prev, currentAction: 'sending' }));
+        await sendBackToFunderMutation.mutateAsync(wallet._id);
+        
+        successCount++;
+        setCleanupProgress(prev => ({ ...prev, successCount }));
+      } catch (error: any) {
+        failCount++;
+        const errorMsg = `${walletAddr}: ${error.message}`;
+        errors.push(errorMsg);
+        setCleanupProgress(prev => ({ 
+          ...prev, 
+          failCount,
+          errors: [...prev.errors, errorMsg]
+        }));
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    setCleanupProgress(prev => ({ ...prev, currentAction: 'complete' }));
+
+    if (successCount > 0) {
+      toast.success(`✅ Full cleanup completed for ${successCount} wallet${successCount !== 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`❌ Failed for ${failCount} wallet${failCount !== 1 ? 's' : ''}`);
+    }
+
+    setSelectedWallets(new Set());
+    refetchActive();
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -616,6 +845,30 @@ export const Wallets: React.FC = () => {
                     <X className="w-4 h-4 mr-2" />
                     Remove Tags ({selectedWallets.size})
                   </Button>
+                  
+                  {/* 🧹 Bulk Cleanup Actions */}
+                  <Button
+                    variant="warning"
+                    onClick={handleBulkSellAllTokens}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Sell All Tokens ({selectedWallets.size})
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleBulkSendBackToFunder}
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    Send to Funder ({selectedWallets.size})
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={handleBulkFullCleanup}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Full Cleanup ({selectedWallets.size})
+                  </Button>
+                  
                   {showArchived ? (
                     <Button
                       variant="success"
@@ -1200,6 +1453,14 @@ export const Wallets: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 🧹 Bulk Cleanup Modal with Progress */}
+      <BulkCleanupModal
+        isOpen={showCleanupModal}
+        onClose={() => setShowCleanupModal(false)}
+        progress={cleanupProgress}
+        operation={cleanupOperation}
+      />
     </div>
   );
 };
