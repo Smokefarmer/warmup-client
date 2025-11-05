@@ -201,24 +201,75 @@ export const useSendBackToFunder = () => {
   });
 };
 
-// Send to funder via CEX (wallet -> CEX -> funder)
-export const useSendToFunderViaCex = () => {
+// Send to funder via CEX (wallet -> CEX -> funder) - Bulk operation
+export const useBulkSendToFunderViaCex = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ walletId, funderAddress, amount }: { walletId: string; funderAddress: string; amount?: string }) =>
-      WalletService.sendToFunderViaCex(walletId, funderAddress, amount),
+    mutationFn: ({ walletIds, funderAddress }: { walletIds: string[]; funderAddress: string }) =>
+      WalletService.bulkSendToFunderViaCex(walletIds, funderAddress),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['wallets'] });
       if (data.success) {
-        toast.success(`Successfully sent ${data.amountSent} SOL to funder via ${data.cex}`);
+        toast.success(`Started sending funds via CEX. Job ID: ${data.jobId}`);
       } else {
-        toast.error(`Failed to send to funder via CEX: ${data.error}`);
+        toast.error(`Failed to start send via CEX: ${data.error}`);
       }
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || error.message || 'Failed to send to funder via CEX';
-      toast.error(`Failed to send to funder via CEX: ${message}`);
+      const message = error.response?.data?.message || error.message || 'Failed to start send to funder via CEX';
+      toast.error(`Failed to start send via CEX: ${message}`);
+    },
+  });
+};
+
+// Get job status
+export const useJobStatus = (jobId: string | null, options?: { refetchInterval?: number }) => {
+  return useQuery({
+    queryKey: ['job-status', jobId],
+    queryFn: () => jobId ? WalletService.getJobStatus(jobId) : null,
+    enabled: !!jobId,
+    refetchInterval: options?.refetchInterval || 2000, // Poll every 2 seconds
+  });
+};
+
+// Bulk check funder source
+export const useBulkCheckFunder = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ walletIds }: { walletIds: string[] }) =>
+      WalletService.bulkCheckFunder(walletIds),
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success(`Started checking funder source. Job ID: ${data.jobId}`);
+      } else {
+        toast.error(`Failed to start funder check: ${data.error}`);
+      }
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || 'Failed to start funder check';
+      toast.error(`Failed to check funder: ${message}`);
+    },
+  });
+};
+
+// Bulk sell all tokens
+export const useBulkSellAllTokens = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ walletIds }: { walletIds: string[] }) =>
+      WalletService.bulkSellAllTokens(walletIds),
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success(`Started selling tokens. Job ID: ${data.jobId}`);
+      } else {
+        toast.error(`Failed to start bulk sell: ${data.error}`);
+      }
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || 'Failed to start bulk sell';
+      toast.error(`Failed to sell tokens: ${message}`);
     },
   });
 };

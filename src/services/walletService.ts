@@ -185,18 +185,53 @@ export class WalletService {
     }
   }
 
-  // Send to funder via CEX (wallet -> CEX -> funder)
-  static async sendToFunderViaCex(walletId: string, funderAddress: string, amount?: string) {
+  // Send to funder via CEX (wallet -> CEX -> funder) - Bulk operation
+  static async bulkSendToFunderViaCex(walletIds: string[], funderAddress: string) {
     try {
-      const body: any = { funderAddress };
-      if (amount) {
-        body.amount = amount;
-      }
-      
-      const response = await api.post(`/api/wallets/${walletId}/send-to-funder-via-cex`, body);
+      const response = await api.post('/api/wallets/bulk-send-to-funder-via-cex', {
+        walletIds,
+        funderAddress
+      });
       return response.data;
     } catch (error) {
       console.error('Error sending to funder via CEX:', error);
+      throw error;
+    }
+  }
+
+  // Get job status
+  static async getJobStatus(jobId: string) {
+    try {
+      const response = await api.get(`/api/wallets/job-status/${jobId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting job status:', error);
+      throw error;
+    }
+  }
+
+  // Check funder source for wallets - Bulk operation
+  static async bulkCheckFunder(walletIds: string[]) {
+    try {
+      const response = await api.post('/api/wallets/bulk-check-funder', {
+        walletIds
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error checking funder:', error);
+      throw error;
+    }
+  }
+
+  // Sell all tokens for wallets - Bulk operation
+  static async bulkSellAllTokens(walletIds: string[]) {
+    try {
+      const response = await api.post('/api/wallets/bulk-sell-all-tokens', {
+        walletIds
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error bulk selling tokens:', error);
       throw error;
     }
   }

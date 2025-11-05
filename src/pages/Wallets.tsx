@@ -25,7 +25,10 @@ import {
   useBulkTokenHoldings,
   useSellAllTokens,
   useSendBackToFunder,
-  useSendToFunderViaCex
+  useBulkSendToFunderViaCex,
+  useJobStatus,
+  useBulkCheckFunder,
+  useBulkSellAllTokens
 } from '../hooks/useWallets';
 import { useForceUpdateAllBalances, useUpdateTotalFundedForWallet, useBulkUpdateBalances } from '../hooks/useBalance';
 import { useFunderInfoAll } from '../hooks/useFunding';
@@ -126,12 +129,26 @@ export const Wallets: React.FC = () => {
   const unarchiveMutation = useUnarchiveWallet();
   const sellAllTokensMutation = useSellAllTokens();
   const sendBackToFunderMutation = useSendBackToFunder();
-  const sendToFunderViaCexMutation = useSendToFunderViaCex();
+  const bulkSendToFunderViaCexMutation = useBulkSendToFunderViaCex();
+  const bulkCheckFunderMutation = useBulkCheckFunder();
+  const bulkSellAllTokensMutation = useBulkSellAllTokens();
   const updateAllBalancesMutation = useForceUpdateAllBalances();
   const updateSingleBalanceMutation = useUpdateTotalFundedForWallet();
   const bulkUpdateBalancesMutation = useBulkUpdateBalances();
   const sendBackMutation = useSendBackToFunder();
   const { data: funderInfoAll } = useFunderInfoAll();
+
+  // Job tracking for send to funder via CEX
+  const [activeCexJobId, setActiveCexJobId] = useState<string | null>(null);
+  const { data: cexJobStatus } = useJobStatus(activeCexJobId, { refetchInterval: 2000 });
+  
+  // Job tracking for funder check
+  const [activeFunderCheckJobId, setActiveFunderCheckJobId] = useState<string | null>(null);
+  const { data: funderCheckJobStatus } = useJobStatus(activeFunderCheckJobId, { refetchInterval: 2000 });
+
+  // Job tracking for bulk sell
+  const [activeSellJobId, setActiveSellJobId] = useState<string | null>(null);
+  const { data: sellJobStatus } = useJobStatus(activeSellJobId, { refetchInterval: 2000 });
 
   // Use the correct wallet data based on current view
   const wallets = showArchived ? archivedWallets : activeWallets;
@@ -243,6 +260,93 @@ export const Wallets: React.FC = () => {
       console.log('🔍 Current filtered count:', filteredWallets.length);
     }
   }, [activeWallets.length, archivedWallets.length, showArchived, filteredWallets.length]);
+
+  // Monitor CEX job status and update progress
+  useEffect(() => {
+    if (cexJobStatus?.progress && activeCexJobId) {
+      setCleanupProgress(prev => ({
+        ...prev,
+        current: cexJobStatus.progress?.current || 0,
+        total: cexJobStatus.progress?.total || 0,
+        currentAction: cexJobStatus.progress?.message || 'Processing...',
+        successCount: cexJobStatus.result?.successful || 0,
+        failCount: cexJobStatus.result?.failed || 0,
+        errors: cexJobStatus.result?.details?.failed?.map((f: any) => f.error) || []
+      }));
+
+      // If job is completed or failed, stop tracking
+      if (cexJobStatus.status === 'completed' || cexJobStatus.status === 'failed') {
+        if (cexJobStatus.status === 'completed') {
+          toast.success(`✅ Sent funds via CEX: ${cexJobStatus.result?.successful || 0} successful, ${cexJobStatus.result?.failed || 0} failed`);
+        } else {
+          toast.error(`❌ CEX transfer job failed: ${cexJobStatus.error}`);
+        }
+        setActiveCexJobId(null);
+        setSelectedWallets(new Set());
+        refetchActive();
+      }
+    }
+  }, [cexJobStatus, activeCexJobId, refetchActive]);
+
+  // Monitor funder check job status
+  useEffect(() => {
+    if (funderCheckJobStatus && activeFunderCheckJobId) {
+      // Update progress if available
+      if (funderCheckJobStatus.progress) {
+        const current = funderCheckJobStatus.progress.current || 0;
+        const total = funderCheckJobStatus.progress.total || 0;
+        const message = funderCheckJobStatus.progress.message || 'Checking...';
+        const percent = total > 0 ? Math.round((current / total) * 100) : 0;
+        
+        // Update toast with progress
+        toast.loading(`🔍 ${percent}% - ${message}`, {
+          id: 'funder-check-progress'
+        });
+      }
+      
+      if (funderCheckJobStatus.status === 'completed') {
+        const checked = funderCheckJobStatus.result?.checked || 0;
+        const failed = funderCheckJobStatus.result?.failed || 0;
+        toast.success(`✅ Checked ${checked} wallets (${failed} failed)`, {
+          id: 'funder-check-progress'
+        });
+        setActiveFunderCheckJobId(null);
+        refetchActive();
+      } else if (funderCheckJobStatus.status === 'failed') {
+        toast.error(`❌ Funder check failed: ${funderCheckJobStatus.error}`, {
+          id: 'funder-check-progress'
+        });
+        setActiveFunderCheckJobId(null);
+      }
+    }
+  }, [funderCheckJobStatus, activeFunderCheckJobId, refetchActive]);
+
+  // Monitor bulk sell job status and update progress
+  useEffect(() => {
+    if (sellJobStatus?.progress && activeSellJobId) {
+      setCleanupProgress(prev => ({
+        ...prev,
+        current: sellJobStatus.progress?.current || 0,
+        total: sellJobStatus.progress?.total || 0,
+        currentAction: sellJobStatus.progress?.message || 'Selling tokens...',
+        successCount: sellJobStatus.result?.successful || 0,
+        failCount: sellJobStatus.result?.failed || 0,
+        errors: sellJobStatus.result?.details?.failed?.map((f: any) => f.error) || []
+      }));
+
+      // If job is completed or failed, stop tracking
+      if (sellJobStatus.status === 'completed' || sellJobStatus.status === 'failed') {
+        if (sellJobStatus.status === 'completed') {
+          toast.success(`✅ Sold tokens: ${sellJobStatus.result?.successful || 0} successful, ${sellJobStatus.result?.failed || 0} failed`);
+        } else {
+          toast.error(`❌ Bulk sell job failed: ${sellJobStatus.error}`);
+        }
+        setActiveSellJobId(null);
+        setSelectedWallets(new Set());
+        refetchActive();
+      }
+    }
+  }, [sellJobStatus, activeSellJobId, refetchActive]);
 
   const handleStatusUpdate = async (walletId: string, status: WalletStatus) => {
     try {
@@ -557,66 +661,27 @@ export const Wallets: React.FC = () => {
       return;
     }
 
-    const wallets = Array.from(selectedWallets).map(id => 
-      activeWallets.find(w => w._id === id)
-    ).filter(Boolean);
-
-    setCleanupOperation('sell');
-    setCleanupProgress({
-      current: 0,
-      total: wallets.length,
-      currentWallet: '',
-      currentAction: 'selling',
-      successCount: 0,
-      failCount: 0,
-      errors: [],
-    });
-    setShowCleanupModal(true);
-
-    let successCount = 0;
-    let failCount = 0;
-    const errors: string[] = [];
-
-    for (let i = 0; i < wallets.length; i++) {
-      const wallet = wallets[i];
-      if (!wallet) continue;
-
-      setCleanupProgress(prev => ({
-        ...prev,
-        current: i + 1,
-        currentWallet: formatAddress(wallet.publicKey || wallet.address),
-        currentAction: 'selling',
-      }));
-
-      try {
-        await sellAllTokensMutation.mutateAsync(wallet._id);
-        successCount++;
-        setCleanupProgress(prev => ({ ...prev, successCount }));
-      } catch (error: any) {
-        failCount++;
-        const errorMsg = `${formatAddress(wallet.publicKey || wallet.address)}: ${error.message}`;
-        errors.push(errorMsg);
-        setCleanupProgress(prev => ({ 
-          ...prev, 
-          failCount,
-          errors: [...prev.errors, errorMsg]
-        }));
+    const walletIds = Array.from(selectedWallets);
+    try {
+      const result = await bulkSellAllTokensMutation.mutateAsync({ walletIds });
+      if (result.success && result.jobId) {
+        setActiveSellJobId(result.jobId);
+        // Initialize modal
+        setCleanupOperation('sell');
+        setCleanupProgress({
+          current: 0,
+          total: walletIds.length,
+          currentWallet: '',
+          currentAction: 'Starting bulk sell...',
+          successCount: 0,
+          failCount: 0,
+          errors: [],
+        });
+        setShowCleanupModal(true);
       }
-
-      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch (error: any) {
+      toast.error(`Failed to start bulk sell: ${error.message}`);
     }
-
-    setCleanupProgress(prev => ({ ...prev, currentAction: 'complete' }));
-
-    if (successCount > 0) {
-      toast.success(`✅ Sold tokens from ${successCount} wallet${successCount !== 1 ? 's' : ''}`);
-    }
-    if (failCount > 0) {
-      toast.error(`❌ Failed for ${failCount} wallet${failCount !== 1 ? 's' : ''}`);
-    }
-
-    setSelectedWallets(new Set());
-    refetchActive();
   };
 
   const handleBulkSendBackToFunder = async () => {
@@ -720,74 +785,64 @@ export const Wallets: React.FC = () => {
       return;
     }
 
-    setCleanupOperation('sendBackViaCex');
-    setCleanupProgress({
-      current: 0,
-      total: wallets.length,
-      currentWallet: '',
-      currentAction: 'sending via CEX',
-      successCount: 0,
-      failCount: 0,
-      errors: [],
-    });
-    setShowCleanupModal(true);
+    // Get funder address from first wallet's chain (assuming all same chain)
+    const firstWallet = wallets[0];
+    if (!firstWallet) return;
+    
+    const chainId = firstWallet.chainId.toString();
+    const funderAddress = funderInfoAll?.funderInfo?.[chainId]?.funderAddress;
+    
+    if (!funderAddress) {
+      toast.error(`No funder address found for chain ${chainId}`);
+      return;
+    }
 
-    let successCount = 0;
-    let failCount = 0;
-    const errors: string[] = [];
+    try {
+      // Start the bulk job
+      const walletIds = wallets.map(w => w!._id);
+      const result = await bulkSendToFunderViaCexMutation.mutateAsync({
+        walletIds,
+        funderAddress
+      });
 
-    for (let i = 0; i < wallets.length; i++) {
-      const wallet = wallets[i];
-      if (!wallet) continue;
-
-      setCleanupProgress(prev => ({
-        ...prev,
-        current: i + 1,
-        currentWallet: formatAddress(wallet.publicKey || wallet.address),
-        currentAction: 'sending via CEX',
-      }));
-
-      try {
-        // Get funder address for this wallet's chain
-        const chainId = wallet.chainId.toString();
-        const funderAddress = funderInfoAll?.funderInfo?.[chainId]?.funderAddress;
-        
-        if (!funderAddress) {
-          throw new Error(`No funder address found for chain ${chainId}`);
-        }
-
-        await sendToFunderViaCexMutation.mutateAsync({
-          walletId: wallet._id,
-          funderAddress: funderAddress
+      if (result.success && result.jobId) {
+        setActiveCexJobId(result.jobId);
+        setCleanupOperation('sendBackViaCex');
+        setCleanupProgress({
+          current: 0,
+          total: wallets.length,
+          currentWallet: '',
+          currentAction: 'Starting CEX transfers...',
+          successCount: 0,
+          failCount: 0,
+          errors: [],
         });
-        successCount++;
-        setCleanupProgress(prev => ({ ...prev, successCount }));
-      } catch (error: any) {
-        failCount++;
-        const errorMsg = `${formatAddress(wallet.publicKey || wallet.address)}: ${error.message}`;
-        errors.push(errorMsg);
-        setCleanupProgress(prev => ({ 
-          ...prev, 
-          failCount,
-          errors: [...prev.errors, errorMsg]
-        }));
+        setShowCleanupModal(true);
       }
+    } catch (error: any) {
+      toast.error(`Failed to start CEX transfer: ${error.message}`);
+    }
+  };
 
-      // Longer wait for CEX operations
-      await new Promise(resolve => setTimeout(resolve, 2000));
+  const handleBulkCheckFunder = async () => {
+    if (selectedWallets.size === 0) {
+      toast.error('Please select at least one wallet');
+      return;
     }
 
-    setCleanupProgress(prev => ({ ...prev, currentAction: 'complete' }));
-
-    if (successCount > 0) {
-      toast.success(`✅ Sent funds via CEX from ${successCount} wallet${successCount !== 1 ? 's' : ''}`);
+    const walletIds = Array.from(selectedWallets);
+    try {
+      const result = await bulkCheckFunderMutation.mutateAsync({ walletIds });
+      if (result.success && result.jobId) {
+        setActiveFunderCheckJobId(result.jobId);
+        toast.loading(`🔍 Checking funder source for ${walletIds.length} wallets... This will take ~${Math.round(walletIds.length * 1.5 / 60)} minutes`, {
+          id: 'funder-check-progress',
+          duration: Infinity
+        });
+      }
+    } catch (error: any) {
+      toast.error(`Failed to start funder check: ${error.message}`);
     }
-    if (failCount > 0) {
-      toast.error(`❌ Failed for ${failCount} wallet${failCount !== 1 ? 's' : ''}`);
-    }
-
-    setSelectedWallets(new Set());
-    refetchActive();
   };
 
   const handleBulkFullCleanup = async () => {
@@ -1048,6 +1103,22 @@ export const Wallets: React.FC = () => {
                 >
                   <X className="w-4 h-4 mr-2" />
                   Remove Tags
+                </Button>
+              </div>
+
+              {/* Analysis Actions */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Analysis
+                </p>
+                <Button
+                  variant="secondary"
+                  onClick={handleBulkCheckFunder}
+                  loading={bulkCheckFunderMutation.isPending}
+                  className="w-full justify-start"
+                >
+                  <Search className="w-4 h-4 mr-2" />
+                  Check Funder Source
                 </Button>
               </div>
 
@@ -1368,6 +1439,7 @@ export const Wallets: React.FC = () => {
                   <th>Chain</th>
                   <th>Balance</th>
                   <th>Tag</th>
+                  <th>Funder</th>
                   <th>Current Tokens</th>
                   <th>Created</th>
                   <th>Actions</th>
@@ -1433,6 +1505,21 @@ export const Wallets: React.FC = () => {
                           </div>
                         ) : (
                           <span className="text-xs text-gray-400">No tag</span>
+                        )}
+                      </td>
+                      <td>
+                        {(wallet as any).funderSource ? (
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            ['MEXC', 'Binance', 'Coinbase', 'KuCoin', 'Gate.io', 'LBank'].includes((wallet as any).funderSource)
+                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                              : (wallet as any).funderSource === 'DIRECT'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                          }`}>
+                            {(wallet as any).funderSource}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">Not checked</span>
                         )}
                       </td>
                       <td>
