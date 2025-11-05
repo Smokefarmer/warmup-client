@@ -201,6 +201,28 @@ export const useSendBackToFunder = () => {
   });
 };
 
+// Send to funder via CEX (wallet -> CEX -> funder)
+export const useSendToFunderViaCex = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ walletId, funderAddress, amount }: { walletId: string; funderAddress: string; amount?: string }) =>
+      WalletService.sendToFunderViaCex(walletId, funderAddress, amount),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      if (data.success) {
+        toast.success(`Successfully sent ${data.amountSent} SOL to funder via ${data.cex}`);
+      } else {
+        toast.error(`Failed to send to funder via CEX: ${data.error}`);
+      }
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || 'Failed to send to funder via CEX';
+      toast.error(`Failed to send to funder via CEX: ${message}`);
+    },
+  });
+};
+
 // ============ TOKEN MANAGEMENT HOOKS ============
 
 // Get wallets with token information

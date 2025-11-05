@@ -185,6 +185,22 @@ export class WalletService {
     }
   }
 
+  // Send to funder via CEX (wallet -> CEX -> funder)
+  static async sendToFunderViaCex(walletId: string, funderAddress: string, amount?: string) {
+    try {
+      const body: any = { funderAddress };
+      if (amount) {
+        body.amount = amount;
+      }
+      
+      const response = await api.post(`/api/wallets/${walletId}/send-to-funder-via-cex`, body);
+      return response.data;
+    } catch (error) {
+      console.error('Error sending to funder via CEX:', error);
+      throw error;
+    }
+  }
+
   // Strategic wallet generation
   static async generateStrategicWallets(config: StrategicWalletGenerationConfig): Promise<{ jobId: string }> {
     try {

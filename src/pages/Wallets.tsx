@@ -24,7 +24,8 @@ import {
   useRemoveWalletTag,
   useBulkTokenHoldings,
   useSellAllTokens,
-  useSendBackToFunder
+  useSendBackToFunder,
+  useSendToFunderViaCex
 } from '../hooks/useWallets';
 import { useForceUpdateAllBalances, useUpdateTotalFundedForWallet, useBulkUpdateBalances } from '../hooks/useBalance';
 import { useFunderInfoAll } from '../hooks/useFunding';
@@ -125,6 +126,7 @@ export const Wallets: React.FC = () => {
   const unarchiveMutation = useUnarchiveWallet();
   const sellAllTokensMutation = useSellAllTokens();
   const sendBackToFunderMutation = useSendBackToFunder();
+  const sendToFunderViaCexMutation = useSendToFunderViaCex();
   const updateAllBalancesMutation = useForceUpdateAllBalances();
   const updateSingleBalanceMutation = useUpdateTotalFundedForWallet();
   const bulkUpdateBalancesMutation = useBulkUpdateBalances();
@@ -702,6 +704,92 @@ export const Wallets: React.FC = () => {
     refetchActive();
   };
 
+  const handleBulkSendToFunderViaCex = async () => {
+    if (selectedWallets.size === 0) {
+      toast.error('Please select at least one wallet');
+      return;
+    }
+
+    const wallets = Array.from(selectedWallets).map(id => 
+      activeWallets.find(w => w._id === id)
+    ).filter(Boolean);
+
+    // Validate that we have at least one wallet
+    if (wallets.length === 0) {
+      toast.error('No valid wallets selected');
+      return;
+    }
+
+    setCleanupOperation('sendBackViaCex');
+    setCleanupProgress({
+      current: 0,
+      total: wallets.length,
+      currentWallet: '',
+      currentAction: 'sending via CEX',
+      successCount: 0,
+      failCount: 0,
+      errors: [],
+    });
+    setShowCleanupModal(true);
+
+    let successCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < wallets.length; i++) {
+      const wallet = wallets[i];
+      if (!wallet) continue;
+
+      setCleanupProgress(prev => ({
+        ...prev,
+        current: i + 1,
+        currentWallet: formatAddress(wallet.publicKey || wallet.address),
+        currentAction: 'sending via CEX',
+      }));
+
+      try {
+        // Get funder address for this wallet's chain
+        const chainId = wallet.chainId.toString();
+        const funderAddress = funderInfoAll?.funderInfo?.[chainId]?.funderAddress;
+        
+        if (!funderAddress) {
+          throw new Error(`No funder address found for chain ${chainId}`);
+        }
+
+        await sendToFunderViaCexMutation.mutateAsync({
+          walletId: wallet._id,
+          funderAddress: funderAddress
+        });
+        successCount++;
+        setCleanupProgress(prev => ({ ...prev, successCount }));
+      } catch (error: any) {
+        failCount++;
+        const errorMsg = `${formatAddress(wallet.publicKey || wallet.address)}: ${error.message}`;
+        errors.push(errorMsg);
+        setCleanupProgress(prev => ({ 
+          ...prev, 
+          failCount,
+          errors: [...prev.errors, errorMsg]
+        }));
+      }
+
+      // Longer wait for CEX operations
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
+    setCleanupProgress(prev => ({ ...prev, currentAction: 'complete' }));
+
+    if (successCount > 0) {
+      toast.success(`✅ Sent funds via CEX from ${successCount} wallet${successCount !== 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`❌ Failed for ${failCount} wallet${failCount !== 1 ? 's' : ''}`);
+    }
+
+    setSelectedWallets(new Set());
+    refetchActive();
+  };
+
   const handleBulkFullCleanup = async () => {
     if (selectedWallets.size === 0) {
       toast.error('Please select at least one wallet');
@@ -982,7 +1070,15 @@ export const Wallets: React.FC = () => {
                   className="w-full justify-start"
                 >
                   <Send className="w-4 h-4 mr-2" />
-                  Send to Funder
+                  Send to Funder (Direct)
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleBulkSendToFunderViaCex}
+                  className="w-full justify-start"
+                >
+                  <Network className="w-4 h-4 mr-2" />
+                  Send to Funder (via CEX)
                 </Button>
                 <Button
                   variant="danger"
@@ -1025,7 +1121,8 @@ export const Wallets: React.FC = () => {
                     <p><strong>Export CSV:</strong> Download wallet data</p>
                     <p><strong>Update Balances:</strong> Refresh on-chain balances</p>
                     <p><strong>Sell All:</strong> Convert tokens to native currency</p>
-                    <p><strong>Send to Funder:</strong> Transfer balance back</p>
+                    <p><strong>Send Direct:</strong> Transfer balance back instantly</p>
+                    <p><strong>Send via CEX:</strong> Route through exchange (random)</p>
                     <p><strong>Full Cleanup:</strong> Complete wallet reset</p>
                   </div>
                 </div>
