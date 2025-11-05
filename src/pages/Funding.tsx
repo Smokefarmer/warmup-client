@@ -9,6 +9,8 @@ import { VirtualWalletList } from '../components/VirtualWalletList';
 import { useFunderStatus, useFunderInfoAll } from '../hooks/useFunding';
 import { useWallets, useSellAllTokens, useSendBackToFunder } from '../hooks/useWallets';
 import { useMultiChain } from '../hooks/useMultiChain';
+import { useCexBalances } from '../hooks/useCexBalances';
+import { useFundingProgress } from '../hooks/useFundingProgress';
 import { useChain, useChainListener } from '../contexts/ChainContext';
 import { WalletService } from '../services/walletService';
 import { FundingService } from '../services/fundingService';
@@ -29,7 +31,8 @@ import {
   Trash2,
   ArrowLeftRight,
   Loader2,
-  Tag
+  Tag,
+  X
 } from 'lucide-react';
 
 export const Funding: React.FC = () => {
@@ -83,6 +86,37 @@ export const Funding: React.FC = () => {
   // 🎲 NEW: Multi-CEX options for SOL
   const [useSolMultiCex, setUseSolMultiCex] = useState(true); // Default enabled for SOL
   const isSolChain = selectedChain.id === 101;
+  
+  // CEX balances and selection
+  const { balances: cexBalances, loading: cexBalancesLoading, refetch: refetchCexBalances } = useCexBalances();
+  const [selectedCexes, setSelectedCexes] = useState<Set<string>>(new Set());
+  
+  // Funding progress tracking
+  const { progress: fundingProgress, startFunding, updateProgress, addSuccess, addFailure, completeFunding, resetProgress } = useFundingProgress();
+  
+  // Initialize selected CEXes based on availability (only enable those without errors)
+  // Note: CEXes with 0 balance are still selectable - the funder wallet will deposit to them first
+  useEffect(() => {
+    if (cexBalances.length > 0) {
+      const availableCexes = new Set<string>();
+      const coin = isBnbChain ? 'bnb' : isSolChain ? 'sol' : null;
+      
+      cexBalances.forEach(cex => {
+        if (coin) {
+          const balance = cex[coin as 'bnb' | 'sol'];
+          // Only exclude CEXes with errors - 0 balance is OK (funder will deposit first)
+          if (!balance.error) {
+            availableCexes.add(cex.cexName);
+          }
+        }
+      });
+      
+      // Set available CEXes as selected by default
+      if (availableCexes.size > 0) {
+        setSelectedCexes(availableCexes);
+      }
+    }
+  }, [cexBalances, isBnbChain, isSolChain]);
   
   // Bulk cleanup states
   const [isCleaningUp, setIsCleaningUp] = useState(false);
@@ -267,8 +301,74 @@ export const Funding: React.FC = () => {
     }
   };
 
-  // Simple funding (CEX or STEALTH only)
-  const quickFund = async (method: 'CEX' | 'STEALTH') => {
+  // Validate amounts against CEX minimums
+  const validateAmountsAgainstCexMinimums = async (
+    amounts: number[] | null, 
+    selectedCexNames: string[],
+    isRandomMode: boolean,
+    randomMin?: number,
+    randomMax?: number
+  ): Promise<{ valid: boolean; errors: string[] }> => {
+    const useMultiCex = (isBnbChain && bnbFundingMode === 'multiCex') || (isSolChain && useSolMultiCex);
+    if (!useMultiCex || selectedCexNames.length === 0) {
+      return { valid: true, errors: [] };
+    }
+
+    const currency = isBnbChain ? 'BNB' : isSolChain ? 'SOL' : null;
+    if (!currency) {
+      return { valid: true, errors: [] };
+    }
+
+    try {
+      const result = await FundingService.getCexMinimumAmounts(currency);
+      if (!result.success || !result.minimums) {
+        return { valid: true, errors: [] }; // If we can't get minimums, allow funding
+      }
+
+      const minimums = result.minimums;
+      const errors: string[] = [];
+
+      // Normalize CEX names to match config keys (lowercase, remove .io)
+      const normalizeCexName = (name: string): string => {
+        return name.toLowerCase().replace('.io', '').replace(' ', '');
+      };
+
+      // Check each selected CEX
+      for (const cexName of selectedCexNames) {
+        const normalizedName = normalizeCexName(cexName);
+        const minimum = minimums[normalizedName] || minimums.default;
+
+        if (isRandomMode && randomMin !== undefined) {
+          // For random mode, check if minAmount is below minimum
+          if (randomMin < minimum) {
+            errors.push(
+              `❌ ${cexName}: Minimum amount ${randomMin.toFixed(6)} ${currency} is below withdrawal requirement of ${minimum} ${currency}. ` +
+              `Please set minimum to at least ${minimum} ${currency}.`
+            );
+          }
+        } else if (amounts && amounts.length > 0) {
+          // For fixed amounts, check if any amount is below minimum
+          const tooLowAmounts = amounts.filter(amt => amt < minimum);
+          if (tooLowAmounts.length > 0) {
+            const minAmount = Math.min(...amounts);
+            errors.push(
+              `❌ ${cexName}: Amount ${minAmount.toFixed(6)} ${currency} is below minimum withdrawal requirement of ${minimum} ${currency}. ` +
+              `Please use at least ${minimum} ${currency} per wallet.`
+            );
+          }
+        }
+      }
+
+      return { valid: errors.length === 0, errors };
+    } catch (error: any) {
+      // If validation fails, allow funding but log warning
+      console.warn('Failed to validate amounts against CEX minimums:', error);
+      return { valid: true, errors: [] };
+    }
+  };
+
+  // Unified funding function with Multi-CEX support
+  const startFundingProcess = async () => {
     if (selectedWallets.size === 0) {
       toast.error('Please select at least one wallet');
       return;
@@ -280,18 +380,62 @@ export const Funding: React.FC = () => {
       return;
     }
 
+    // Validate: All selected wallets must be on the same chain as selected chain
+    const selectedWalletsList = Array.from(selectedWallets)
+      .map(id => availableWallets.find(w => w._id === id))
+      .filter(w => w);
+    
+    const mismatchedWallets = selectedWalletsList.filter(w => w!.chainId !== selectedChain.id);
+    if (mismatchedWallets.length > 0) {
+      const chainName = selectedChain.name;
+      const wrongChainNames = mismatchedWallets.map(w => {
+        const walletChain = Object.values(SUPPORTED_CHAINS).find(c => c.id === w!.chainId);
+        return walletChain?.name || `Chain ${w!.chainId}`;
+      }).join(', ');
+      
+      toast.error(
+        `⚠️ Chain mismatch! You selected ${chainName} but ${mismatchedWallets.length} wallet(s) are on ${wrongChainNames}. Please select wallets matching your chosen chain.`,
+        { duration: 6000 }
+      );
+      return;
+    }
+
+    // Check if Multi-CEX is enabled and has selected CEXes
+    const useMultiCex = (isBnbChain && bnbFundingMode === 'multiCex') || (isSolChain && useSolMultiCex);
+    if (useMultiCex && selectedCexes.size === 0) {
+      toast.error('Please select at least one CEX for Multi-CEX funding');
+      return;
+    }
+
+    // Validate amounts against CEX minimums before starting funding
+    const amounts = amountMode === 'FIXED' ? getFundingAmounts() : null;
+    const validation = await validateAmountsAgainstCexMinimums(
+      amounts, 
+      Array.from(selectedCexes),
+      amountMode === 'RANDOM',
+      amountMode === 'RANDOM' ? minAmount : undefined,
+      amountMode === 'RANDOM' ? maxAmount : undefined
+    );
+    if (!validation.valid) {
+      // Show all validation errors
+      validation.errors.forEach(error => toast.error(error, { duration: 6000 }));
+      return;
+    }
+
     setIsFunding(true);
+    startFunding(selectedWallets.size);
 
     try {
       const walletIds = Array.from(selectedWallets);
-      const amounts = getFundingAmounts(); // This handles both FIXED and RANDOM modes
-      
-      // 🎲 NEW: For BNB chain with Multi-CEX mode
-      if (isBnbChain && bnbFundingMode === 'multiCex') {
+      const amounts = getFundingAmounts();
+
+      // Use Multi-CEX if enabled
+      if (useMultiCex) {
         const requestBody: any = {
           walletIds,
           chainId: selectedChain.id,
           useMultiCex: true,
+          selectedCexes: Array.from(selectedCexes), // Pass selected CEXes
         };
 
         if (amountMode === 'RANDOM') {
@@ -305,7 +449,10 @@ export const Funding: React.FC = () => {
           requestBody.randomizeAmounts = false;
         }
 
+        // Call API (will show progress via polling or WebSocket in future)
         const result = await FundingService.fundSelectedWalletsMultiCex(requestBody);
+        
+        completeFunding();
         
         if (result.success) {
           const totalAmount = amountMode === 'RANDOM' 
@@ -317,44 +464,15 @@ export const Funding: React.FC = () => {
         } else {
           toast.error(`❌ Multi-CEX funding failed: ${result.message}`);
         }
-      } else if (isSolChain && useSolMultiCex) {
-        // 🎲 NEW: For SOL chain with Multi-CEX mode
-        const requestBody: any = {
-          walletIds,
-          chainId: selectedChain.id,
-          useMultiCex: true,
-        };
-
-        if (amountMode === 'RANDOM') {
-          requestBody.randomizeAmounts = true;
-          requestBody.amountRange = {
-            min: minAmount,
-            max: maxAmount,
-          };
-        } else {
-          requestBody.amounts = amounts;
-          requestBody.randomizeAmounts = false;
-        }
-
-        const result = await FundingService.fundSelectedWalletsMultiCex(requestBody);
-        
-        if (result.success) {
-          const totalAmount = amountMode === 'RANDOM' 
-            ? ((minAmount + maxAmount) / 2 * walletIds.length).toFixed(3)
-            : amounts.reduce((sum, amt) => sum + amt, 0).toFixed(3);
-          toast.success(`🎲 Multi-CEX funded ${walletIds.length} SOL wallets with ~${totalAmount} SOL total`);
-          setSelectedWallets(new Set());
-          refetchWallets();
-        } else {
-          toast.error(`❌ Multi-CEX SOL funding failed: ${result.message}`);
-        }
       } else {
-        // Use chain-aware funding service with amounts (legacy/standard method)
+        // Legacy direct funding (for BNB mixer mode)
         const result = await FundingService.fundSelectedWallets(walletIds, selectedChain.id, amounts);
+        
+        completeFunding();
         
         if (result.success) {
           const totalAmount = amounts.reduce((sum, amt) => sum + amt, 0);
-          toast.success(`✅ ${method} funded ${walletIds.length} wallets with ${totalAmount.toFixed(3)} ${selectedChain.symbol} total`);
+          toast.success(`✅ Funded ${walletIds.length} wallets with ${totalAmount.toFixed(3)} ${selectedChain.symbol} total`);
           setSelectedWallets(new Set());
           refetchWallets();
         } else {
@@ -362,6 +480,7 @@ export const Funding: React.FC = () => {
         }
       }
     } catch (error: any) {
+      completeFunding();
       toast.error(`❌ Error: ${error.message || 'Unknown error'}`);
     } finally {
       setIsFunding(false);
@@ -689,15 +808,30 @@ export const Funding: React.FC = () => {
       {/* CEX Balances Card */}
       <CexBalancesCard />
 
-      {/* Bulk Cleanup Actions */}
+      {/* Bulk Actions - Redesigned for Better UX */}
       {selectedWallets.size > 0 && (
-        <Card className="p-6">
+        <Card className="p-6 border-2 border-primary-200 dark:border-primary-800">
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
-                <Trash2 className="w-5 h-5 mr-2" />
-                Bulk Wallet Cleanup ({selectedWallets.size} selected)
-              </h3>
+            {/* Header with Selection Summary */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
+                  <Wallet className="w-5 h-5 mr-2 text-primary-600" />
+                  Bulk Actions
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  {selectedWallets.size} wallet{selectedWallets.size !== 1 ? 's' : ''} selected • {Array.from(selectedWallets).map(id => availableWallets.find(w => w._id === id)).filter(w => w && w.chainId === selectedChain.id).length} {selectedChain.name} wallets
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setSelectedWallets(new Set())}
+                className="flex items-center"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Clear Selection
+              </Button>
             </div>
             
             {/* Progress indicator */}
@@ -730,46 +864,66 @@ export const Funding: React.FC = () => {
               </div>
             )}
 
-            <div className="flex flex-wrap gap-3">
-              <Button
-                variant="secondary"
-                onClick={handleBulkSellAllTokens}
-                disabled={isCleaningUp || isFunding}
-                className="flex items-center"
-              >
-                <ArrowLeftRight className="w-4 h-4 mr-2" />
-                Sell All Tokens
-              </Button>
-              
-              <Button
-                variant="secondary"
-                onClick={handleBulkSendBackToFunder}
-                disabled={isCleaningUp || isFunding || !getValidatedFunderAddress()}
-                className="flex items-center"
-              >
-                <Target className="w-4 h-4 mr-2" />
-                Send Back to Funder
-              </Button>
-              
-              <Button
-                variant="danger"
-                onClick={handleBulkCleanup}
-                disabled={isCleaningUp || isFunding || !getValidatedFunderAddress()}
-                className="flex items-center"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Full Cleanup (Sell + Send)
-              </Button>
-            </div>
+            {/* Action Buttons - Organized in Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Cleanup Actions */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Cleanup Actions
+                </p>
+                <Button
+                  variant="secondary"
+                  onClick={handleBulkSellAllTokens}
+                  disabled={isCleaningUp || isFunding}
+                  className="w-full justify-start"
+                >
+                  <ArrowLeftRight className="w-4 h-4 mr-2" />
+                  Sell All Tokens
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleBulkSendBackToFunder}
+                  disabled={isCleaningUp || isFunding || !getValidatedFunderAddress()}
+                  className="w-full justify-start"
+                >
+                  <Target className="w-4 h-4 mr-2" />
+                  Send to Funder
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={handleBulkCleanup}
+                  disabled={isCleaningUp || isFunding || !getValidatedFunderAddress()}
+                  className="w-full justify-start"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Full Cleanup
+                </Button>
+              </div>
 
-          <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-            <p className="text-xs text-gray-600 dark:text-gray-400">
-              ℹ️ Cleanup actions are for {selectedChain.name} wallets on the selected chain. 
-              {Array.from(selectedWallets).map(id => availableWallets.find(w => w._id === id)).filter(w => w && w.chainId === selectedChain.id).length} of {selectedWallets.size} selected wallets are {selectedChain.name} wallets.
-            </p>
+              {/* Info Panel */}
+              <div className="md:col-span-2 space-y-3">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                  <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2 uppercase tracking-wider">
+                    💡 Quick Guide
+                  </p>
+                  <div className="space-y-1 text-xs text-blue-600 dark:text-blue-400">
+                    <p><strong>Sell All Tokens:</strong> Convert all token holdings to {selectedChain.symbol}</p>
+                    <p><strong>Send to Funder:</strong> Transfer {selectedChain.symbol} balance back to funder wallet</p>
+                    <p><strong>Full Cleanup:</strong> Sell tokens + send to funder (complete wallet reset)</p>
+                  </div>
+                </div>
+                
+                {!getValidatedFunderAddress() && (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
+                    <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                      ⚠️ Funder address not available. Some actions are disabled.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
       )}
 
       {/* Wallet Filters */}
@@ -781,7 +935,10 @@ export const Funding: React.FC = () => {
               Wallet Filters
             </h3>
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              {availableWallets.length} of {wallets.length} wallets shown
+              {availableWallets.length} of {chainFilteredWallets.length} {selectedChain.name} wallets shown
+              {chainFilteredWallets.length !== wallets.length && (
+                <span className="ml-1 text-gray-400">({wallets.length} total across all chains)</span>
+              )}
             </div>
           </div>
 
@@ -806,8 +963,8 @@ export const Funding: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Chain</label>
               <select
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                value={selectedChain}
-                onChange={(e) => setSelectedChain(e.target.value)}
+                value={filterChain}
+                onChange={(e) => setFilterChain(e.target.value)}
               >
                 <option value="">All Chains</option>
                 {supportedChains?.map(chain => (
@@ -894,14 +1051,14 @@ export const Funding: React.FC = () => {
           </div>
 
           {/* Clear Filters */}
-          {(searchTerm || selectedChain || selectedType || selectedStatus || selectedTag || showOnlyZeroBalance || showOnlyWithBalance) && (
+          {(searchTerm || filterChain || selectedType || selectedStatus || selectedTag || showOnlyZeroBalance || showOnlyWithBalance) && (
             <div className="flex justify-end">
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={() => {
                   setSearchTerm('');
-                  setSelectedChain('');
+                  setFilterChain('');
                   setSelectedType('');
                   setSelectedStatus('');
                   setSelectedTag('');
@@ -1243,31 +1400,171 @@ export const Funding: React.FC = () => {
               )}
             </div>
 
-            {/* Simple Mode */}
-            {fundingMethod === 'SIMPLE' && (
-              <div className="space-y-3">
-                <h4 className="font-medium text-gray-900 dark:text-gray-100">Quick Funding ({selectedWallets.size} wallets)</h4>
-                <div className="flex space-x-3">
-                  <Button
-                    variant="primary"
-                    onClick={() => quickFund('STEALTH')}
-                    loading={isFunding}
-                    disabled={selectedWallets.size === 0}
-                  >
-                    <Shield className="w-4 h-4 mr-2" />
-                    🥷 Stealth Fund All
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => quickFund('CEX')}
-                    loading={isFunding}
-                    disabled={selectedWallets.size === 0}
-                  >
-                    🏦 CEX Fund All
-                  </Button>
+            {/* CEX Selection (when Multi-CEX is enabled) */}
+            {((isBnbChain && bnbFundingMode === 'multiCex') || (isSolChain && useSolMultiCex)) && (
+              <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <h4 className="font-medium text-gray-900 dark:text-gray-100 flex items-center">
+                  🎯 Select CEXes for Multi-CEX Rotation
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Each wallet will be randomly assigned to one of the selected CEXes below
+                </p>
+                
+                {cexBalancesLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <RefreshCw className="w-5 h-5 animate-spin text-gray-400" />
+                    <span className="ml-2 text-sm text-gray-500">Loading CEX balances...</span>
+                  </div>
+                ) : cexBalances.length === 0 ? (
+                  <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                      ⚠️ No CEX configured. Add CEX credentials to .env file to use Multi-CEX funding.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {cexBalances.map((cex) => {
+                      const coin = isBnbChain ? 'bnb' : isSolChain ? 'sol' : null;
+                      const balance = coin ? cex[coin as 'bnb' | 'sol'] : null;
+                      // CEX is available if it has no error (0 balance is OK - funder will deposit first)
+                      const isAvailable = balance && !balance.error;
+                      const hasBalance = balance && balance.available > 0;
+                      const isSelected = selectedCexes.has(cex.cexName);
+                      
+                      return (
+                        <label
+                          key={cex.cexName}
+                          className={`flex items-start p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                            isAvailable
+                              ? isSelected
+                                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                                : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                              : 'border-gray-200 dark:border-gray-700 opacity-50 cursor-not-allowed'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (isAvailable) {
+                                setSelectedCexes(prev => {
+                                  const newSet = new Set(prev);
+                                  if (e.target.checked) {
+                                    newSet.add(cex.cexName);
+                                  } else {
+                                    newSet.delete(cex.cexName);
+                                  }
+                                  return newSet;
+                                });
+                              }
+                            }}
+                            disabled={!isAvailable}
+                            className="mt-1 mr-2"
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium text-sm text-gray-900 dark:text-gray-100 flex items-center">
+                              {cex.cexName}
+                              {balance?.error && (
+                                <span className="ml-2 text-xs px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded">
+                                  ⚠️ Unavailable
+                                </span>
+                              )}
+                            </div>
+                            {balance?.error ? (
+                              <div className="mt-1 space-y-1">
+                                <div className="text-xs text-red-600 dark:text-red-400 font-medium">
+                                  API Error
+                                </div>
+                                <div 
+                                  className="text-xs text-red-500 dark:text-red-400 break-words"
+                                  title={balance.error}
+                                >
+                                  {balance.error.length > 50 ? balance.error.substring(0, 50) + '...' : balance.error}
+                                </div>
+                              </div>
+                            ) : balance ? (
+                              <div className="text-xs mt-1">
+                                {hasBalance ? (
+                                  <span className="text-green-600 dark:text-green-400 font-medium">
+                                    ✅ {balance.available.toFixed(4)} {coin?.toUpperCase()} available
+                                  </span>
+                                ) : (
+                                  <span className="text-yellow-600 dark:text-yellow-400">
+                                    💰 0 {coin?.toUpperCase()} - will be funded first
+                                  </span>
+                                )}
+                              </div>
+                            ) : null}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {selectedCexes.size === 0 && cexBalances.length > 0 && (
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                    <p className="text-sm text-red-700 dark:text-red-300">
+                      ⚠️ Please select at least one available CEX to proceed with funding
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Funding Progress Display */}
+            {fundingProgress.isFunding && (
+              <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                    <span className="font-medium text-blue-900 dark:text-blue-100">
+                      Funding in progress...
+                    </span>
+                  </div>
+                  <span className="text-sm text-blue-700 dark:text-blue-300">
+                    {fundingProgress.currentIndex} / {fundingProgress.totalWallets}
+                  </span>
+                </div>
+                
+                <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${fundingProgress.progress}%` }}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-blue-700 dark:text-blue-300">
+                    {fundingProgress.currentWallet && (
+                      <>Funding: {formatAddress(fundingProgress.currentWallet)}</>
+                    )}
+                    {fundingProgress.currentCex && (
+                      <> via {fundingProgress.currentCex}</>
+                    )}
+                  </span>
+                  <div className="flex items-center space-x-4 text-blue-600 dark:text-blue-400">
+                    <span>✅ {fundingProgress.successful}</span>
+                    <span>❌ {fundingProgress.failed}</span>
+                  </div>
                 </div>
               </div>
             )}
+
+            {/* Start Funding Button */}
+            <div className="space-y-3">
+              <Button
+                variant="primary"
+                onClick={startFundingProcess}
+                loading={isFunding}
+                disabled={selectedWallets.size === 0 || ((isBnbChain && bnbFundingMode === 'multiCex') || (isSolChain && useSolMultiCex)) && selectedCexes.size === 0}
+                className="w-full"
+                size="lg"
+              >
+                <Target className="w-5 h-5 mr-2" />
+                {isFunding ? 'Funding...' : `Start Funding ${selectedWallets.size} Wallet${selectedWallets.size !== 1 ? 's' : ''}`}
+              </Button>
+            </div>
 
             {/* Advanced CLI-Style Mode */}
             {fundingMethod === 'ADVANCED' && (

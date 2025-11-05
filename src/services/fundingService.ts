@@ -103,6 +103,7 @@ export class FundingService {
     walletIds: string[];
     chainId: number;
     useMultiCex: boolean;
+    selectedCexes?: string[]; // Optional: which CEXes to use
     randomizeAmounts?: boolean;
     amountRange?: {
       min: number;
@@ -182,6 +183,18 @@ export class FundingService {
     };
   }> {
     const response = await api.post(ENDPOINTS.check, { walletAddresses });
+    return response.data;
+  }
+
+  // Get CEX minimum withdrawal amounts
+  static async getCexMinimumAmounts(currency?: string): Promise<{
+    success: boolean;
+    currency?: string;
+    minimums?: Record<string, number>;
+    message?: string;
+  }> {
+    const params = currency ? `?currency=${currency}` : '';
+    const response = await api.get(`/api/funding/cex/minimum-amounts${params}`);
     return response.data;
   }
 }

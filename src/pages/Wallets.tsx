@@ -54,7 +54,8 @@ import {
   Download,
   DollarSign,
   Trash2,
-  Send
+  Send,
+  Loader2
 } from 'lucide-react';
 
 // Import token components
@@ -626,6 +627,12 @@ export const Wallets: React.FC = () => {
       activeWallets.find(w => w._id === id)
     ).filter(Boolean);
 
+    // Validate that we have at least one wallet
+    if (wallets.length === 0) {
+      toast.error('No valid wallets selected');
+      return;
+    }
+
     setCleanupOperation('sendBack');
     setCleanupProgress({
       current: 0,
@@ -654,7 +661,18 @@ export const Wallets: React.FC = () => {
       }));
 
       try {
-        await sendBackToFunderMutation.mutateAsync(wallet._id);
+        // Get funder address for this wallet's chain
+        const chainId = wallet.chainId.toString();
+        const funderAddress = funderInfoAll?.funderInfo?.[chainId]?.funderAddress;
+        
+        if (!funderAddress) {
+          throw new Error(`No funder address found for chain ${chainId}`);
+        }
+
+        await sendBackToFunderMutation.mutateAsync({
+          walletId: wallet._id,
+          funderAddress: funderAddress
+        });
         successCount++;
         setCleanupProgress(prev => ({ ...prev, successCount }));
       } catch (error: any) {
@@ -726,7 +744,19 @@ export const Wallets: React.FC = () => {
         await sellAllTokensMutation.mutateAsync(wallet._id);
         
         setCleanupProgress(prev => ({ ...prev, currentAction: 'sending' }));
-        await sendBackToFunderMutation.mutateAsync(wallet._id);
+        
+        // Get funder address for this wallet's chain
+        const chainId = wallet.chainId.toString();
+        const funderAddress = funderInfoAll?.funderInfo?.[chainId]?.funderAddress;
+        
+        if (!funderAddress) {
+          throw new Error(`No funder address found for chain ${chainId}`);
+        }
+
+        await sendBackToFunderMutation.mutateAsync({
+          walletId: wallet._id,
+          funderAddress: funderAddress
+        });
         
         successCount++;
         setCleanupProgress(prev => ({ ...prev, successCount }));
@@ -813,83 +843,6 @@ export const Wallets: React.FC = () => {
                   </>
                 )}
               </Button>
-              {selectedWallets.size > 0 && (
-                <>
-                  <Button
-                    variant="success"
-                    onClick={handleExportCSV}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Export CSV ({selectedWallets.size})
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={handleBulkUpdateBalances}
-                    loading={bulkUpdateBalancesMutation.isPending}
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Update Balance ({selectedWallets.size})
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={() => setShowBulkTagModal(true)}
-                  >
-                    <Tags className="w-4 h-4 mr-2" />
-                    Set Tag ({selectedWallets.size})
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={handleBulkRemoveTag}
-                    loading={removeTagMutation.isPending}
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Remove Tags ({selectedWallets.size})
-                  </Button>
-                  
-                  {/* 🧹 Bulk Cleanup Actions */}
-                  <Button
-                    variant="warning"
-                    onClick={handleBulkSellAllTokens}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Sell All Tokens ({selectedWallets.size})
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={handleBulkSendBackToFunder}
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    Send to Funder ({selectedWallets.size})
-                  </Button>
-                  <Button
-                    variant="danger"
-                    onClick={handleBulkFullCleanup}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Full Cleanup ({selectedWallets.size})
-                  </Button>
-                  
-                  {showArchived ? (
-                    <Button
-                      variant="success"
-                      onClick={handleBulkUnarchive}
-                      loading={unarchiveMutation.isPending}
-                    >
-                      <Archive className="w-4 h-4 mr-2" />
-                      Unarchive ({selectedWallets.size})
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="danger"
-                      onClick={handleBulkArchive}
-                      loading={archiveMutation.isPending}
-                    >
-                      <Archive className="w-4 h-4 mr-2" />
-                      Archive ({selectedWallets.size})
-                    </Button>
-                  )}
-                </>
-              )}
             </>
           )}
           {showStrategicGeneration && (
@@ -906,6 +859,193 @@ export const Wallets: React.FC = () => {
       {/* Strategic Wallet Generation */}
       {showStrategicGeneration && (
         <StrategicWalletGenerator />
+      )}
+
+      {/* Bulk Actions - Redesigned for Better UX */}
+      {!showStrategicGeneration && selectedWallets.size > 0 && (
+        <Card className="p-6 border-2 border-primary-200 dark:border-primary-800">
+          <div className="space-y-4">
+            {/* Header with Selection Summary */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
+                  <Wallet className="w-5 h-5 mr-2 text-primary-600" />
+                  Bulk Actions
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  {selectedWallets.size} wallet{selectedWallets.size !== 1 ? 's' : ''} selected
+                  {showArchived ? ' (archived)' : ' (active)'}
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setSelectedWallets(new Set())}
+                className="flex items-center"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Clear Selection
+              </Button>
+            </div>
+            
+            {/* Progress indicator */}
+            {showCleanupModal && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        {cleanupProgress.currentAction === 'selling' ? 'Selling tokens...' : 
+                         cleanupProgress.currentAction === 'sending' ? 'Sending to funder...' :
+                         cleanupProgress.currentAction === 'complete' ? 'Complete!' : 'Processing...'}
+                      </span>
+                      <span className="text-sm text-blue-700 dark:text-blue-300">
+                        {cleanupProgress.current} / {cleanupProgress.total}
+                      </span>
+                    </div>
+                    {cleanupProgress.currentWallet && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400">
+                        Current: {cleanupProgress.currentWallet}
+                      </p>
+                    )}
+                    <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2 mt-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(cleanupProgress.current / cleanupProgress.total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons - Organized in Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Management Actions */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Wallet Management
+                </p>
+                <Button
+                  variant="success"
+                  onClick={handleExportCSV}
+                  className="w-full justify-start"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export CSV
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleBulkUpdateBalances}
+                  loading={bulkUpdateBalancesMutation.isPending}
+                  className="w-full justify-start"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Update Balances
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => setShowBulkTagModal(true)}
+                  className="w-full justify-start"
+                >
+                  <Tags className="w-4 h-4 mr-2" />
+                  Set Tag
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleBulkRemoveTag}
+                  loading={removeTagMutation.isPending}
+                  className="w-full justify-start"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Remove Tags
+                </Button>
+              </div>
+
+              {/* Cleanup Actions */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Cleanup Actions
+                </p>
+                <Button
+                  variant="warning"
+                  onClick={handleBulkSellAllTokens}
+                  className="w-full justify-start"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Sell All Tokens
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleBulkSendBackToFunder}
+                  className="w-full justify-start"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Send to Funder
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={handleBulkFullCleanup}
+                  className="w-full justify-start"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Full Cleanup
+                </Button>
+                {showArchived ? (
+                  <Button
+                    variant="success"
+                    onClick={handleBulkUnarchive}
+                    loading={unarchiveMutation.isPending}
+                    className="w-full justify-start"
+                  >
+                    <Archive className="w-4 h-4 mr-2" />
+                    Unarchive
+                  </Button>
+                ) : (
+                  <Button
+                    variant="danger"
+                    onClick={handleBulkArchive}
+                    loading={archiveMutation.isPending}
+                    className="w-full justify-start"
+                  >
+                    <Archive className="w-4 h-4 mr-2" />
+                    Archive
+                  </Button>
+                )}
+              </div>
+
+              {/* Info Panel */}
+              <div className="space-y-3">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                  <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2 uppercase tracking-wider">
+                    💡 Quick Guide
+                  </p>
+                  <div className="space-y-1 text-xs text-blue-600 dark:text-blue-400">
+                    <p><strong>Export CSV:</strong> Download wallet data</p>
+                    <p><strong>Update Balances:</strong> Refresh on-chain balances</p>
+                    <p><strong>Sell All:</strong> Convert tokens to native currency</p>
+                    <p><strong>Send to Funder:</strong> Transfer balance back</p>
+                    <p><strong>Full Cleanup:</strong> Complete wallet reset</p>
+                  </div>
+                </div>
+                
+                {cleanupProgress.errors.length > 0 && (
+                  <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg max-h-32 overflow-y-auto">
+                    <p className="text-xs font-semibold text-red-700 dark:text-red-300 mb-2">
+                      ⚠️ {cleanupProgress.errors.length} Error{cleanupProgress.errors.length !== 1 ? 's' : ''}
+                    </p>
+                    <div className="space-y-1 text-xs text-red-600 dark:text-red-400">
+                      {cleanupProgress.errors.map((error, idx) => (
+                        <p key={idx}>• {error}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
       )}
 
       {/* Filters */}
@@ -1101,24 +1241,6 @@ export const Wallets: React.FC = () => {
       )}
       
       {/* Token Limits Error (Development Info) */}
-      {!showStrategicGeneration && tokenLimitsError && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <BarChart3 className="w-5 h-5 text-yellow-600" />
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                Token Limits Unavailable
-              </h3>
-              <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                The token limits endpoint is not available yet. Token information in the wallet list will still work once the backend endpoints are implemented.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Wallet Count */}
       {!showStrategicGeneration && (
         <div className="flex items-center justify-end mb-4">
