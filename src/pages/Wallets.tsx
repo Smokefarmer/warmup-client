@@ -104,12 +104,12 @@ export const Wallets: React.FC = () => {
   
   // Bulk cleanup states
   const [showCleanupModal, setShowCleanupModal] = useState(false);
-  const [cleanupOperation, setCleanupOperation] = useState<'sell' | 'sendBack' | 'full'>('full');
+  const [cleanupOperation, setCleanupOperation] = useState<'sell' | 'sendBack' | 'sendBackViaCex' | 'full'>('full');
   const [cleanupProgress, setCleanupProgress] = useState({
     current: 0,
     total: 0,
     currentWallet: '',
-    currentAction: 'selling' as 'selling' | 'sending' | 'complete' | 'error',
+    currentAction: 'selling' as string, // Can be any string for display
     successCount: 0,
     failCount: 0,
     errors: [] as string[],
@@ -148,7 +148,22 @@ export const Wallets: React.FC = () => {
 
   // Job tracking for bulk sell
   const [activeSellJobId, setActiveSellJobId] = useState<string | null>(null);
-  const { data: sellJobStatus } = useJobStatus(activeSellJobId, { refetchInterval: 2000 });
+  const { data: sellJobStatus, isLoading: sellJobLoading, error: sellJobError } = useJobStatus(activeSellJobId, { refetchInterval: 2000 });
+  
+  // Debug log when jobId changes
+  useEffect(() => {
+    console.log('[Wallets] activeSellJobId changed to:', activeSellJobId);
+  }, [activeSellJobId]);
+  
+  // Debug log when status changes
+  useEffect(() => {
+    console.log('[Wallets] sellJobStatus changed:', {
+      status: sellJobStatus,
+      isLoading: sellJobLoading,
+      error: sellJobError,
+      hasJobId: !!activeSellJobId
+    });
+  }, [sellJobStatus, sellJobLoading, sellJobError, activeSellJobId]);
 
   // Use the correct wallet data based on current view
   const wallets = showArchived ? archivedWallets : activeWallets;
@@ -279,7 +294,7 @@ export const Wallets: React.FC = () => {
         if (cexJobStatus.status === 'completed') {
           toast.success(`✅ Sent funds via CEX: ${cexJobStatus.result?.successful || 0} successful, ${cexJobStatus.result?.failed || 0} failed`);
         } else {
-          toast.error(`❌ CEX transfer job failed: ${cexJobStatus.error}`);
+          toast.error(`❌ CEX transfer job failed: ${(cexJobStatus as any).error || 'Unknown error'}`);
         }
         setActiveCexJobId(null);
         setSelectedWallets(new Set());
@@ -313,7 +328,7 @@ export const Wallets: React.FC = () => {
         setActiveFunderCheckJobId(null);
         refetchActive();
       } else if (funderCheckJobStatus.status === 'failed') {
-        toast.error(`❌ Funder check failed: ${funderCheckJobStatus.error}`, {
+        toast.error(`❌ Funder check failed: ${(funderCheckJobStatus as any).error || 'Unknown error'}`, {
           id: 'funder-check-progress'
         });
         setActiveFunderCheckJobId(null);
@@ -323,25 +338,48 @@ export const Wallets: React.FC = () => {
 
   // Monitor bulk sell job status and update progress
   useEffect(() => {
-    if (sellJobStatus?.progress && activeSellJobId) {
-      setCleanupProgress(prev => ({
-        ...prev,
-        current: sellJobStatus.progress?.current || 0,
-        total: sellJobStatus.progress?.total || 0,
-        currentAction: sellJobStatus.progress?.message || 'Selling tokens...',
-        successCount: sellJobStatus.result?.successful || 0,
-        failCount: sellJobStatus.result?.failed || 0,
-        errors: sellJobStatus.result?.details?.failed?.map((f: any) => f.error) || []
-      }));
+    if (sellJobStatus && activeSellJobId) {
+      console.log('Sell job status update:', JSON.stringify(sellJobStatus, null, 2));
+      console.log('Progress:', sellJobStatus.progress);
+      console.log('Current:', sellJobStatus.progress?.current, 'Total:', sellJobStatus.progress?.total);
+      
+      // Update progress display
+      if (sellJobStatus.progress) {
+        // Extract wallet address from message like "Selling tokens from AvtmQ2xd... (1/3)"
+        const message = sellJobStatus.progress?.message || '';
+        const walletMatch = message.match(/from\s+([A-Za-z0-9]+\.\.\.)/) || message.match(/([A-Za-z0-9]{8}\.\.\.)/);
+        const currentWallet = walletMatch ? walletMatch[1] : '';
+        
+        const newProgress = {
+          current: sellJobStatus.progress?.current || 0,
+          total: sellJobStatus.progress?.total || 0,
+          currentWallet: currentWallet,
+          currentAction: sellJobStatus.progress?.message || 'Selling tokens...',
+          successCount: sellJobStatus.result?.successful || 0,
+          failCount: sellJobStatus.result?.failed || 0,
+          errors: sellJobStatus.result?.details?.failed?.map((f: any) => f.error) || []
+        };
+        console.log('Setting cleanup progress:', newProgress);
+        setCleanupProgress(prev => ({
+          ...prev,
+          ...newProgress
+        }));
+      }
 
       // If job is completed or failed, stop tracking
       if (sellJobStatus.status === 'completed' || sellJobStatus.status === 'failed') {
+        console.log('Sell job finished:', sellJobStatus.status, sellJobStatus.result);
+        
         if (sellJobStatus.status === 'completed') {
-          toast.success(`✅ Sold tokens: ${sellJobStatus.result?.successful || 0} successful, ${sellJobStatus.result?.failed || 0} failed`);
+          const successful = sellJobStatus.result?.successful || 0;
+          const failed = sellJobStatus.result?.failed || 0;
+          toast.success(`✅ Bulk sell completed! ${successful} successful, ${failed} failed`);
         } else {
-          toast.error(`❌ Bulk sell job failed: ${sellJobStatus.error}`);
+          toast.error(`❌ Bulk sell job failed: ${(sellJobStatus as any).error || 'Unknown error'}`);
         }
+        
         setActiveSellJobId(null);
+        setShowCleanupModal(false);
         setSelectedWallets(new Set());
         refetchActive();
       }
@@ -664,8 +702,11 @@ export const Wallets: React.FC = () => {
     const walletIds = Array.from(selectedWallets);
     try {
       const result = await bulkSellAllTokensMutation.mutateAsync({ walletIds });
+      console.log('Bulk sell result:', result);
       if (result.success && result.jobId) {
         setActiveSellJobId(result.jobId);
+        console.log('Set active sell job ID:', result.jobId);
+        toast.success(`🚀 Started selling tokens from ${walletIds.length} wallets. Track progress in real-time.`);
         // Initialize modal
         setCleanupOperation('sell');
         setCleanupProgress({

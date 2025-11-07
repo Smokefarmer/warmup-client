@@ -5,7 +5,7 @@ interface CleanupProgress {
   current: number;
   total: number;
   currentWallet?: string;
-  currentAction?: 'selling' | 'sending' | 'complete' | 'error';
+  currentAction?: string; // Can be any descriptive string for display
   successCount?: number;
   failCount?: number;
   errors?: string[];
@@ -15,7 +15,7 @@ interface BulkCleanupModalProps {
   isOpen: boolean;
   onClose: () => void;
   progress: CleanupProgress;
-  operation: 'sell' | 'sendBack' | 'full';
+  operation: 'sell' | 'sendBack' | 'sendBackViaCex' | 'full';
 }
 
 export const BulkCleanupModal: React.FC<BulkCleanupModalProps> = ({
@@ -47,6 +47,12 @@ export const BulkCleanupModal: React.FC<BulkCleanupModalProps> = ({
       return 'Cleanup Complete!';
     }
 
+    // If currentAction is a custom message, display it directly
+    if (progress.currentAction && progress.currentAction.length > 15) {
+      return progress.currentAction;
+    }
+
+    // Otherwise, use predefined messages for standard action types
     switch (progress.currentAction) {
       case 'selling':
         return '🔥 Selling tokens...';
@@ -55,7 +61,7 @@ export const BulkCleanupModal: React.FC<BulkCleanupModalProps> = ({
       case 'error':
         return '❌ Error occurred';
       default:
-        return 'Processing...';
+        return progress.currentAction || 'Processing...';
     }
   };
 

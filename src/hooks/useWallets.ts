@@ -18,7 +18,7 @@ export const walletKeys = {
 export const useWallets = () => {
   return useQuery({
     queryKey: ['wallets'],
-    queryFn: WalletService.getWallets,
+    queryFn: () => WalletService.getWallets(),
     staleTime: 30000, // 30 seconds
   });
 };
@@ -36,7 +36,7 @@ export const useAvailableWallets = () => {
 export const useArchivedWallets = () => {
   return useQuery({
     queryKey: ['wallets', 'archived'],
-    queryFn: WalletService.getArchivedWallets,
+    queryFn: () => WalletService.getArchivedWallets(),
     staleTime: 30000, // 30 seconds
   });
 };
@@ -226,9 +226,21 @@ export const useBulkSendToFunderViaCex = () => {
 export const useJobStatus = (jobId: string | null, options?: { refetchInterval?: number }) => {
   return useQuery({
     queryKey: ['job-status', jobId],
-    queryFn: () => jobId ? WalletService.getJobStatus(jobId) : null,
+    queryFn: async () => {
+      if (!jobId) {
+        console.log('[useJobStatus] No jobId provided');
+        return null;
+      }
+      console.log(`[useJobStatus] Polling job status for: ${jobId.substring(0, 8)}...`);
+      const result = await WalletService.getJobStatus(jobId);
+      console.log(`[useJobStatus] Got status:`, result);
+      return result;
+    },
     enabled: !!jobId,
     refetchInterval: options?.refetchInterval || 2000, // Poll every 2 seconds
+    refetchIntervalInBackground: false, // Only poll when tab is active
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache
   });
 };
 

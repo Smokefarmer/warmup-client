@@ -18,6 +18,7 @@ import { WalletStatus, WalletType } from '../types/wallet';
 import { formatAddress, formatWalletBalance } from '../utils/formatters';
 import { isValidSolanaAddress, convertHexToBase58 } from '../utils/validators';
 import { findSolanaAddressForEthereum } from '../utils/addressMapping';
+import { SUPPORTED_CHAINS } from '../config/chains';
 import { 
   RefreshCw, 
   Wallet, 
@@ -39,7 +40,7 @@ export const Funding: React.FC = () => {
   const { selectedChain } = useChain();
   const { data: funderStatus, refetch: refetchFunder } = useFunderStatus();
   const { data: funderInfoAll } = useFunderInfoAll();
-  const { data: wallets = [], isLoading: walletsLoading, refetch: refetchWallets } = useWallets();
+  const { data: wallets = [] as any[], isLoading: walletsLoading, refetch: refetchWallets } = useWallets();
   const { getChainName, supportedChains } = useMultiChain();
   
   // Bulk cleanup hooks
@@ -59,7 +60,7 @@ export const Funding: React.FC = () => {
 
   // Filter wallets by selected chain
   const chainFilteredWallets = React.useMemo(() => {
-    return wallets.filter(wallet => wallet.chainId === selectedChain.id);
+    return wallets.filter((wallet: any) => wallet.chainId === selectedChain.id);
   }, [wallets, selectedChain.id]);
 
   // Refresh wallets when chain changes
@@ -217,12 +218,12 @@ export const Funding: React.FC = () => {
   // Get unique tags for filter dropdown
   const uniqueTags = Array.from(new Set(
     wallets
-      .filter(wallet => wallet.tag && wallet.tag.trim())
-      .map(wallet => wallet.tag!)
+      .filter((wallet: any) => wallet.tag && wallet.tag.trim())
+      .map((wallet: any) => wallet.tag!)
   )).sort();
 
   // Filter available wallets with all filters applied
-  const availableWallets = chainFilteredWallets.filter(wallet => {
+  const availableWallets = chainFilteredWallets.filter((wallet: any) => {
     // Base filter: exclude only archived wallets (handle both uppercase and lowercase)
     const isArchived = wallet.status === WalletStatus.ARCHIVED;
     if (isArchived) return false;
@@ -280,7 +281,7 @@ export const Funding: React.FC = () => {
     if (selectedWallets.size === availableWallets.length) {
       setSelectedWallets(new Set());
     } else {
-      setSelectedWallets(new Set(availableWallets.map(w => w._id)));
+      setSelectedWallets(new Set(availableWallets.map((w: any) => w._id)));
     }
   };
 
@@ -382,10 +383,10 @@ export const Funding: React.FC = () => {
 
     // Validate: All selected wallets must be on the same chain as selected chain
     const selectedWalletsList = Array.from(selectedWallets)
-      .map(id => availableWallets.find(w => w._id === id))
-      .filter(w => w);
+      .map(id => availableWallets.find((w: any) => w._id === id))
+      .filter((w: any) => w);
     
-    const mismatchedWallets = selectedWalletsList.filter(w => w!.chainId !== selectedChain.id);
+    const mismatchedWallets = selectedWalletsList.filter((w: any) => w!.chainId !== selectedChain.id);
     if (mismatchedWallets.length > 0) {
       const chainName = selectedChain.name;
       const wrongChainNames = mismatchedWallets.map(w => {
@@ -462,7 +463,7 @@ export const Funding: React.FC = () => {
           setSelectedWallets(new Set());
           refetchWallets();
         } else {
-          toast.error(`❌ Multi-CEX funding failed: ${result.message}`);
+          toast.error(`❌ Multi-CEX funding failed: ${(result as any).message || 'Unknown error'}`);
         }
       } else {
         // Legacy direct funding (for BNB mixer mode)
@@ -476,7 +477,7 @@ export const Funding: React.FC = () => {
           setSelectedWallets(new Set());
           refetchWallets();
         } else {
-          toast.error(`❌ Funding failed: ${result.message}`);
+          toast.error(`❌ Funding failed: ${(result as any).message || 'Unknown error'}`);
         }
       }
     } catch (error: any) {
@@ -555,8 +556,8 @@ export const Funding: React.FC = () => {
     }
 
     const chainWallets = Array.from(selectedWallets)
-      .map(id => availableWallets.find(w => w._id === id))
-      .filter(w => w && w.chainId === selectedChain.id);
+      .map(id => availableWallets.find((w: any) => w._id === id))
+      .filter((w: any) => w && w.chainId === selectedChain.id);
 
     if (chainWallets.length === 0) {
       toast.error(`No ${selectedChain.name} wallets selected on this chain.`);
@@ -624,8 +625,8 @@ export const Funding: React.FC = () => {
     }
 
     const chainWallets = Array.from(selectedWallets)
-      .map(id => availableWallets.find(w => w._id === id))
-      .filter(w => w && w.chainId === selectedChain.id);
+      .map(id => availableWallets.find((w: any) => w._id === id))
+      .filter((w: any) => w && w.chainId === selectedChain.id);
 
     if (chainWallets.length === 0) {
       toast.error(`No ${selectedChain.name} wallets selected on this chain.`);
@@ -690,8 +691,8 @@ export const Funding: React.FC = () => {
     }
 
     const chainWallets = Array.from(selectedWallets)
-      .map(id => availableWallets.find(w => w._id === id))
-      .filter(w => w && w.chainId === selectedChain.id);
+      .map(id => availableWallets.find((w: any) => w._id === id))
+      .filter((w: any) => w && w.chainId === selectedChain.id);
 
     if (chainWallets.length === 0) {
       toast.error(`No ${selectedChain.name} wallets selected on this chain.`);
@@ -820,7 +821,7 @@ export const Funding: React.FC = () => {
                   Bulk Actions
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  {selectedWallets.size} wallet{selectedWallets.size !== 1 ? 's' : ''} selected • {Array.from(selectedWallets).map(id => availableWallets.find(w => w._id === id)).filter(w => w && w.chainId === selectedChain.id).length} {selectedChain.name} wallets
+                  {selectedWallets.size} wallet{selectedWallets.size !== 1 ? 's' : ''} selected • {Array.from(selectedWallets).map(id => availableWallets.find((w: any) => w._id === id)).filter((w: any) => w && w.chainId === selectedChain.id).length} {selectedChain.name} wallets
                 </p>
               </div>
               <Button
@@ -1118,7 +1119,7 @@ export const Funding: React.FC = () => {
                 />
               ) : (
                 <div className="max-h-64 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-md">
-                  {availableWallets.map(wallet => (
+                  {availableWallets.map((wallet: any) => (
                     <div
                       key={wallet._id}
                       className="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-600 last:border-b-0"

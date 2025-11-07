@@ -199,17 +199,6 @@ export class WalletService {
     }
   }
 
-  // Get job status
-  static async getJobStatus(jobId: string) {
-    try {
-      const response = await api.get(`/api/wallets/job-status/${jobId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error getting job status:', error);
-      throw error;
-    }
-  }
-
   // Check funder source for wallets - Bulk operation
   static async bulkCheckFunder(walletIds: string[]) {
     try {
@@ -272,11 +261,17 @@ export class WalletService {
     }
   }
 
-  // Get job status
+  // Get job status (for both wallets and strategic wallets)
   static async getJobStatus(jobId: string): Promise<JobStatus> {
     try {
-      const response = await api.get(`/api/strategic-wallets/jobs/${jobId}`);
-      return response.data;
+      // Try strategic wallets first, then fall back to regular wallet jobs
+      try {
+        const response = await api.get(`/api/strategic-wallets/jobs/${jobId}`);
+        return response.data;
+      } catch {
+        const response = await api.get(`/api/wallets/job-status/${jobId}`);
+        return response.data;
+      }
     } catch (error) {
       console.error('Error fetching job status:', error);
       throw error;

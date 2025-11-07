@@ -31,7 +31,7 @@ export const ScanTotalFunded: React.FC = () => {
   const [showResults, setShowResults] = useState(false);
   
   // Get wallets data
-  const { data: wallets = [], isLoading: walletsLoading } = useWallets();
+  const { data: wallets = [] as any[], isLoading: walletsLoading } = useWallets();
   
   // Debounced search
   const debouncedSearch = useDebounce(searchTerm, 300);

@@ -15,7 +15,7 @@ import {
 
 export const BalanceSummary: React.FC = () => {
   const { data: balanceSummary, isLoading: balanceLoading } = useBalanceSummary();
-  const { data: wallets = [], isLoading: walletsLoading } = useWallets();
+  const { data: wallets = [] as any[], isLoading: walletsLoading } = useWallets();
 
   if (balanceLoading || walletsLoading) {
     return (
@@ -33,11 +33,11 @@ export const BalanceSummary: React.FC = () => {
   }
 
   // Calculate wallet statistics
-  const activeWallets = wallets.filter(w => w.status === WalletStatus.ACTIVE).length;
-  const pausedWallets = wallets.filter(w => w.status === WalletStatus.PAUSED).length;
-  const bannedWallets = wallets.filter(w => w.status === WalletStatus.BANNED).length;
+  const activeWallets = wallets.filter((w: any) => w.status === WalletStatus.ACTIVE).length;
+  const pausedWallets = wallets.filter((w: any) => w.status === WalletStatus.PAUSED).length;
+  const bannedWallets = wallets.filter((w: any) => w.status === WalletStatus.BANNED).length;
   
-  const totalFunded = wallets.reduce((sum, w) => sum + safeToBigInt(w.totalFunded), BigInt(0));
+  const totalFunded = wallets.reduce((sum: any, w: any) => sum + safeToBigInt(w.totalFunded), BigInt(0));
   const averageFunded = wallets.length > 0 ? totalFunded / BigInt(wallets.length) : BigInt(0);
 
   return (
